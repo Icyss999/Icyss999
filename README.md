@@ -1,11 +1,6 @@
-<div align="center">
-  <p> Chill Dev</p>
-</div>
-<div align="center">
-  <img src="https://github.com/Anmol-Baranwal/Cool-GIFs-For-GitHub/assets/74038190/7b282ec6-fcc3-4600-90a7-2c3140549f58" width="400">
-  <br><br>
-</div>
-
+<p align="center">
+  <img src="assets/pet-rift-kick.svg" alt="ICYCLE's pixel pet getting thunder-kicked by its variant from a rift" width="100%">
+</p>
 
 
 <!-- Proudly created with GPRM ( https://gprm.itsvg.in ) -->
