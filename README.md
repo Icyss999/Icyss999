@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/pet-fight.svg" alt="An anime-style fight to the death between Rascal, ICYCLE's pixel raccoon desktop pet, and its purple twin from a workspace rift: eye close-ups, a clash, a slam, the nano suit, a beam struggle, impact frames" width="100%">
+  <img src="assets/pet-fight.svg" alt="An anime-style fight to the death across a ruined battlefield between Rascal, ICYCLE's pixel raccoon desktop pet, and its purple twin from a workspace rift, mostly in one continuous take: a clash, a blow through a stone pillar, lightning across the field, the nano suit, an aerial battle, a beam struggle, an explosion, a thunder slash, impact frames" width="100%">
 </p>
 
 
