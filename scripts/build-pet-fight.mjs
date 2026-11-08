@@ -70,7 +70,6 @@ const WEB = { h: "#FFFFFF", n: "#91CEF5", g: "#C8CCE0", r: "#E84855" };
 const RIFT = { h: "#FFFFFF", a: "#DCC6FF", b: "#A46BFF", d: "#4B2A8C", k: "#12081F", n: "#A46BFF@.5" };
 const DUST = { a: "#F2EDE4", b: "#D8D1C6", c: "#AAA49C" };
 const mono = (fill, keep = {}) => new Proxy({}, { get: (_, ch) => keep[ch] || fill });
-const INK = "#0B0B12";
 
 const SANS = "Inter, 'Segoe UI', Roboto, Arial, sans-serif";
 const r3 = (n) => Math.round(n * 1000) / 1000;
@@ -144,9 +143,9 @@ class Scene {
         return `<g class="${id}"${still ? ` transform="translate(${still[0]} ${still[1]})"` : ""}>${content}</g>`;
     }
     // Opacity along [t, value, easing].
-    fade(content, pts) {
+    fade(content, pts, { base = 0 } = {}) {
         const id = this.uid("o");
-        this.css.push(`${this.keyframes(id, pts.map(([t, v, e]) => [t, `opacity:${v}`, e]))}.${id}{animation:${id} ${this.D}s linear infinite;opacity:0}`);
+        this.css.push(`${this.keyframes(id, pts.map(([t, v, e]) => [t, `opacity:${v}`, e]))}.${id}{animation:${id} ${this.D}s linear infinite;opacity:${base}}`);
         return `<g class="${id}">${content}</g>`;
     }
     // A one-off: at t0, for `dur`, flies off by (dx, dy), turning `r` and
@@ -191,9 +190,11 @@ ${body}
 
 // ---------------------------------------------------------------- the stage
 
-const W = 960, H = 440, D = 21.2;
-const GROUND = 388, px = 7, fx = 4, bfx = 3;
-const TOP = GROUND - Art.H * px;                // the pets' art top: 280
+// A tall stage with a transparent background: the README shows through.
+const W = 960, H = 720, D = 21.2;
+const GROUND = 640, px = 10, fx = 6, bfx = 5;
+const K = px / 7;                               // distances were tuned at px 7
+const TOP = GROUND - Art.H * px;                // the pets' art top
 const S = new Scene(W, H, D);
 
 const MODS = { rim: true, face: "raccoon" };
@@ -205,17 +206,18 @@ const ARMOR = { wear: "armor" };
 // pixels, facing right) at its position (x, y).
 const me = (rows, pal = PAL) => pix(rows, px, 0, 0, { pal });
 const at = (x, y, p) => [x + p[0] * px, y + p[1] * px];
-// The twin: faces left, standing at TX (before its knock back) .
-const TX = 620, KNOCK = 40;
+// The twin: faces left, standing at TX (before its knock back).
+const TX = 590, KNOCK = 34;
 const twin = (rows, pal = TWIN) => pix(rows, px, TX, TOP, { flip: true, pal });
 const tat = (p, knocked = true) => [TX + (knocked ? KNOCK : 0) + (Art.W - p[0]) * px, TOP + p[1] * px];
 
 const CORE = Art.NANO_CORE, HEAD = [Art.HEAD_X, Art.HEAD_Y], MID = [Art.X0 + 5.5, Art.TOP + 10];
-const RIFT_C = [872, 252];
+const RIFT_C = [884, 470];
 // Where Rascal is: home, where it lands after flying, where the thunder
 // slash takes it, up in the air. cx(): the middle of its body there.
-const HOME = 140, LAND = 240, DEST = 528, AIR = [320, 108];
+const HOME = 30, LAND = 190, DEST = 468, AIR = [280, 190];
 const cx = (x) => x + MID[0] * px;
+const GRAY = "#8B949E";
 
 // ---------------------------------------------------------------- effects
 
@@ -234,9 +236,14 @@ function arc(x, y, t, { life = R(0.15, 0.27), colors = { h: "#E8FBFF", b: "#5CCF
     }
     return S.win(s, [[t, t + life]]);
 }
+// Static round a point: `n` crackles within radius r0..r1, from t over dt.
+const crackle = (x, y, n, r0, r1, t, dt) => Array.from({ length: n }, () => {
+    const a = R(0, 2 * Math.PI), r = R(r0, r1) * K;
+    return arc(x + Math.cos(a) * r, y + Math.sin(a) * r, t + R(0, dt));
+}).join("");
 // A streak of light rising off something.
 const ember = (x, y, t, { vy = -R(160, 320), len = 2 + Math.floor(rnd() * 3), life = R(0.26, 0.42), color = "#FFD84A" } = {}) =>
-    S.shot(rect(x, y, fx, len * fx, color), t, life, { dy: vy * life });
+    S.shot(rect(x, y, fx, len * fx, color), t, life, { dy: vy * K * life });
 // A cloud of dust billowing out as it drifts, thinning away.
 function puff(x, y, t, { from = 2, to = 5, dx = 0, dy = -20, life = 0.7 } = {}) {
     const r = Math.round(to), rows = [];
@@ -249,11 +256,12 @@ function puff(x, y, t, { from = 2, to = 5, dx = 0, dy = -20, life = 0.7 } = {}) 
         rows.push(row);
     }
     return S.shot(`<g opacity=".8">${pix(rows, fx, x - r * fx, y - r * fx, { pal: DUST })}</g>`, t, life,
-        { dx, dy, s0: from / to, s1: 1, origin: [x, y], ease: "cubic-bezier(.2,.7,.4,1)" });
+        { dx: dx * K, dy: dy * K, s0: from / to, s1: 1, origin: [x, y], ease: "cubic-bezier(.2,.7,.4,1)" });
 }
 // A chunk of broken ground, lit by the lightning, flung off at (vx, vy)
 // px/s and tumbling a quarter turn at a time till it comes down.
 function rock(x, y, t, { vx = 0, vy = -400, bit = false, life = 1.6, g = 1500 } = {}) {
+    vx *= K; vy *= K; g *= K;
     let cells = [[0, 0]];
     if (!bit) {
         const q = rnd(), w = q < 0.3 ? 2 : q < 0.65 ? 3 : q < 0.9 ? 4 : 5, h = w === 2 ? 2 : w - 1 + Math.floor(rnd() * 2);
@@ -285,15 +293,20 @@ function rock(x, y, t, { vx = 0, vy = -400, bit = false, life = 1.6, g = 1500 } 
 // A pixel shockwave: a ring of sparks flying out, a cross of light flaring
 // and shrinking away.
 function burst(x, y, t, { radius = 56, sparks = 16, glint = 90, life = 0.38, color = "#FFD84A", trail = "#5CCFFF" } = {}) {
+    radius *= K; glint *= K;
     let s = "";
     for (let i = 0; i < sparks; i++) {
         const a = (i / sparks) * 2 * Math.PI + R(-0.2, 0.2), r = radius * R(0.75, 1.15);
         s += S.shot(rect(x - fx / 2, y - fx / 2, fx, fx, i % 2 ? "#FFFFFF" : color), t, life, { dx: Math.cos(a) * r, dy: Math.sin(a) * r, ease: "cubic-bezier(.2,.8,.3,1)" });
         s += S.shot(rect(x - fx / 2, y - fx / 2, fx, fx, trail), t + 0.03, life, { dx: Math.cos(a) * r * 0.7, dy: Math.sin(a) * r * 0.7, ease: "cubic-bezier(.2,.8,.3,1)" });
     }
-    s += S.shot(rect(x - glint / 2, y - 3, glint, 6, "#FFFFFF") + rect(x - 3, y - glint / 2, 6, glint, "#FFFFFF"), t, life * 0.8, { s0: 1, s1: 0.1, origin: [x, y] });
+    s += S.shot(rect(x - glint / 2, y - 4, glint, 8, "#FFFFFF") + rect(x - 4, y - glint / 2, 8, glint, "#FFFFFF"), t, life * 0.8, { s0: 1, s1: 0.1, origin: [x, y] });
     return s;
 }
+// Light bursting off a hit (in place of a flash over the whole screen,
+// which a transparent background hasn't got).
+const flare = (x, y, r, t, peak = 1, dur = 0.35) =>
+    S.fade(`<circle cx="${r3(x)}" cy="${r3(y)}" r="${r3(r)}" fill="url(#flare)"/>`, [[t - 0.001, 0], [t, peak], [t + dur, 0, "ease-out"]]);
 // Pet.qml's impactAt: a comic star behind it, small, big, then middling.
 function impact(x, y, t, { big = true, size = 1, pal = CYAN } = {}) {
     const set = [Art.impact(6 * size, 7), Art.impact(13 * size, 8), Art.impact(9 * size, 8)];
@@ -312,10 +325,10 @@ function boltDraw(b, x, y, pal, pieces) {
     return `<g transform="translate(${r3(x + b.origin[0] * bfx)} ${r3(y + b.origin[1] * bfx)}) scale(${bfx})">${s}</g>`;
 }
 function bolt(a, b, t0, { grow = 0.09, hold = 0.45, fadeOut = 0.32, pal = CYAN, opts = {} } = {}) {
-    const dx = (b[0] - a[0]) / bfx, dy = (b[1] - a[1]) / bfx, K = 10;
-    const first = Art.bolt(dx, dy, { pieces: K, ...opts });
+    const dx = (b[0] - a[0]) / bfx, dy = (b[1] - a[1]) / bfx, N = 10;
+    const first = Art.bolt(dx, dy, { pieces: N, ...opts });
     let s = "";
-    for (let k = 0; k < K; k++) s += S.win(boltDraw(first, a[0], a[1], pal, [k]), [[t0 + (grow * k) / K, t0 + grow + 0.066]]);
+    for (let k = 0; k < N; k++) s += S.win(boltDraw(first, a[0], a[1], pal, [k]), [[t0 + (grow * k) / N, t0 + grow + 0.066]]);
     const redraws = [0, 1, 2].map(() => boltDraw(Art.bolt(dx, dy, { pieces: 1, ...opts }), a[0], a[1], pal, [0]));
     s += S.win(S.loop(redraws, 15), [[t0 + grow + 0.066, t0 + grow + hold]]);
     const thin = [0.65, 0.4].map((sc) => boltDraw(Art.bolt(dx, dy, { pieces: 1, scale: sc, ...opts }), a[0], a[1], pal, [0]));
@@ -327,11 +340,11 @@ function bolt(a, b, t0, { grow = 0.09, hold = 0.45, fadeOut = 0.32, pal = CYAN, 
 const glow = (rows, color, { flip = false, x = 0, y = 0, k = 1.3 } = {}) =>
     `<g filter="url(#aura)">${pix(rows, px * k, x - (Art.W * px * (k - 1)) / 2, y - Art.H * px * (k - 1), { flip, pal: mono(color) })}</g>`;
 // A speech bubble like pet-rift-kick.svg's, its tail's tip at (tx, ty).
-function bubble(text, tx, ty, { size = 19, left = false } = {}) {
-    const w = Math.round(30 + text.length * size * 0.6), h = 40;
-    const x = left ? tx - w + 20 : tx - 20, y = ty - h - 10;
-    return rect(x, y, w, h, "#17191C", ' rx="12"') + rect(tx, ty - 12, 10, 6, "#17191C") + rect(left ? tx + 4 : tx, ty - 6, 6, 6, "#17191C")
-        + `<text x="${x + w / 2}" y="${y + 27}" text-anchor="middle" font-family="${SANS}" font-weight="700" font-size="${size}" fill="#FFFFFF" stroke="#91CEF5" stroke-width=".6" paint-order="stroke">${esc(text)}</text>`;
+function bubble(text, tx, ty, { size = 24, left = false } = {}) {
+    const w = Math.round(36 + text.length * size * 0.6), h = 50;
+    const x = left ? tx - w + 24 : tx - 24, y = ty - h - 12;
+    return rect(x, y, w, h, "#17191C", ' rx="14"') + rect(tx, ty - 14, 12, 8, "#17191C") + rect(left ? tx + 4 : tx, ty - 7, 8, 7, "#17191C")
+        + `<text x="${x + w / 2}" y="${y + 34}" text-anchor="middle" font-family="${SANS}" font-weight="700" font-size="${size}" fill="#FFFFFF" stroke="#91CEF5" stroke-width=".7" paint-order="stroke">${esc(text)}</text>`;
 }
 function say(text, tx, ty, a, b, opts) {
     const id = S.uid("b"), off = "opacity:0;transform:scale(.4)", on = "opacity:1;transform:scale(1)";
@@ -345,9 +358,9 @@ const effect = (name, x, y, pal = PAL, k = fx) => { const rows = Art.effect(name
 // tear with a vortex swirling inside, a white-hot jagged rim and a dithered
 // halo of its dimension's colour. `open` 0 a slit .. 1 open.
 function riftRows(open, phase, seed) {
-    const A = 8, B = 24, pad = 4;
+    const A = 7, B = 24, pad = 4;
     const a = Math.max(0.9, A * Math.min(open, 1.25)), b = B * Math.min(1.15, 0.45 + 0.55 * Math.min(1, open * 1.5) + Math.max(0, open - 1) * 0.4);
-    const cols = 2 * (A * 1.25 + pad + 2), rows = 2 * (B * 1.15 + pad + 2), cx = cols / 2, cy = rows / 2, out = [];
+    const cols = 2 * Math.ceil(A * 1.25 + pad + 2), rows = 2 * Math.ceil(B * 1.15 + pad + 2), cx = cols / 2, cy = rows / 2, out = [];
     for (let y = 0; y < rows; y++) {
         let row = "";
         for (let x = 0; x < cols; x++) {
@@ -372,13 +385,13 @@ const riftAt = (rows) => pix(rows, fx, RIFT_C[0] - (rows[0].length * fx) / 2, RI
 function focus(cx, cy, n, inner, fill) {
     let s = "";
     for (let i = 0; i < n; i++) {
-        const a = (i / n) * 2 * Math.PI + R(-0.08, 0.08), w = R(0.012, 0.035), ri = inner * R(0.75, 1.35), ro = 1400;
+        const a = (i / n) * 2 * Math.PI + R(-0.08, 0.08), w = R(0.012, 0.035), ri = inner * K * R(0.75, 1.35), ro = 1800;
         const p = (ang, r) => `${r3(cx + Math.cos(ang) * r)},${r3(cy + Math.sin(ang) * r)}`;
         s += `<polygon points="${p(a - w, ro)} ${p(a + w, ro)} ${p(a, ri)}" fill="${fill}"/>`;
     }
     return s;
 }
-// The card's edge, jagged, from under (x0, bottom) round and back: the
+// The picture's edge, jagged, from under (x0, bottom) round and back: the
 // lightning that crawls round the frame (FrameCharge).
 function edgeBolt(inset, x0, dir) {
     const l = inset, r = W - inset, t = inset, b = H - inset;
@@ -386,7 +399,7 @@ function edgeBolt(inset, x0, dir) {
     const pts = [];
     let len = 0;
     for (let i = 1; i < corners.length; i++) {
-        const [ax, ay] = corners[i - 1], [bx, by] = corners[i], seg = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.round(seg / 14));
+        const [ax, ay] = corners[i - 1], [bx, by] = corners[i], seg = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.round(seg / 18));
         for (let k = i === 1 ? 0 : 1; k <= n; k++) {
             const f = k / n, j = k === 0 || k === n ? 0 : Math.round(R(-2, 2)) * 2;
             const nx = (by - ay) / seg, ny = -(bx - ax) / seg;
@@ -397,41 +410,115 @@ function edgeBolt(inset, x0, dir) {
     return { points: pts.map((p) => p.join(",")).join(" "), len };
 }
 
+// Pixel letters, 5 x 7 (some narrower).
+const FONT = {
+    F: ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+    I: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "#####"],
+    G: [".####", "#....", "#....", "#.###", "#...#", "#...#", ".####"],
+    H: ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+    T: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
+    "!": ["#", "#", "#", "#", "#", ".", "#"],
+    K: ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
+    O: [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
+    ".": [".", ".", ".", ".", ".", ".", "#"],
+    C: [".####", "#....", "#....", "#....", "#....", "#....", ".####"],
+    Y: ["#...#", "#...#", ".#.#.", "..#..", "..#..", "..#..", "..#.."],
+    L: ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+    E: ["#####", "#....", "#....", "####.", "#....", "#....", "#####"]
+};
+// A word in plain pixel letters, a gap of one between.
+const plainWord = (word) => FONT.I.map((_, y) => [...word].map((ch) => FONT[ch][y].replace(/#/g, "c").replace(/\./g, " ")).join(" "));
+// ...and in chunky ones drawn like the pet: each font pixel 2 x 2, a dark
+// outline, the light rim outside it.
+function pixelWord(word) {
+    const gap = 3, widths = [...word].map((ch) => FONT[ch][0].length * 2);
+    const w = widths.reduce((a, b) => a + b, 0) + gap * (word.length - 1) + 4, h = 18;
+    const g = Array.from({ length: h }, () => Array(w).fill(" "));
+    let ox = 2;
+    [...word].forEach((ch, i) => {
+        FONT[ch].forEach((row, y) => [...row].forEach((v, x) => {
+            if (v !== "#") return;
+            for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) g[2 + y * 2 + dy][ox + x * 2 + dx] = y >= 5 ? "C" : "c";
+        }));
+        ox += widths[i] + gap;
+    });
+    const near = (x, y, test, diag) => [[1, 0], [-1, 0], [0, 1], [0, -1], ...(diag ? [[1, 1], [1, -1], [-1, 1], [-1, -1]] : [])]
+        .some(([dx, dy]) => test((g[y + dy] || [])[x + dx]));
+    const mark = (ch, test, diag) => {
+        const hits = [];
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (g[y][x] === " " && near(x, y, test, diag)) hits.push([x, y]);
+        hits.forEach(([x, y]) => (g[y][x] = ch));
+    };
+    mark("#", (c) => c === "c" || c === "C", true);
+    mark("R", (c) => c === "#", false);
+    return g.map((r) => r.join(""));
+}
+
 // ---------------------------------------------------------------- the fight
 //
-//  0     dark; it gets its torch out and sweeps the beam round
+//  0     it gets its torch out and sweeps the beam round
 //  1.9   something in the beam: a rift tears open
-//  3.0   its double shoots out of it, spinning ("rematch.")
+//  3.0   its double shoots out of it, spinning ("rematch."); FIGHT!
 //  5.6   a crouch, its aura up -- and a bolt of lightning across
 //  6.9   the nano suit flows on from the core; the double's bolt bounces off
 //  8.3   jets: up into the air, a stream of lightning, then web strands
-// 11.0   down, suit off; the dynamo: lightning races round the frame
-// 13.6   the thunder charge: the screen darkens, gold aura, rocks, lightning
+// 11.0   down, suit off; the dynamo: lightning races round the picture
+// 13.6   the thunder charge: gold aura, the ground breaking, lightning
 // 14.6   gone -- the thunder slash -- impact frames
-// 14.96  the double's knocked back through the rift; the rift snaps shut
-// 16.6   flex. "gg"
+// 14.96  K.O.: the double's knocked back through the rift; it snaps shut
+// 16.6   flex. "gg" -- and the stars come out
 
-const L = []; // layers, back to front
-const back = [], pets = [], front = [], top = [];
+const L = [], back = [], pets = [], front = [], top = [];
 
-// ---- the stage
-const defs = `<clipPath id="card"><rect width="${W}" height="${H}" rx="14"/></clipPath>
-<linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#070A14"/><stop offset="1" stop-color="#161C2E"/></linearGradient>
-<radialGradient id="riftGlow"><stop offset="0" stop-color="#A46BFF" stop-opacity=".45"/><stop offset="1" stop-color="#A46BFF" stop-opacity="0"/></radialGradient>
-<radialGradient id="torchGlow"><stop offset="0" stop-color="#FAD250" stop-opacity=".35"/><stop offset="1" stop-color="#FAD250" stop-opacity="0"/></radialGradient>
-<filter id="aura" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7"/></filter>
-<filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3"/></filter>`;
+const defs = `<clipPath id="card"><rect width="${W}" height="${H}" rx="16"/></clipPath>
+<radialGradient id="riftGlow"><stop offset="0" stop-color="#A46BFF" stop-opacity=".42"/><stop offset="1" stop-color="#A46BFF" stop-opacity="0"/></radialGradient>
+<radialGradient id="flare"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".95"/><stop offset=".3" stop-color="#E6FBFF" stop-opacity=".6"/><stop offset="1" stop-color="#8FE0FF" stop-opacity="0"/></radialGradient>
+<radialGradient id="starGlow"><stop offset="0" stop-color="#8FE0FF" stop-opacity=".7"/><stop offset="1" stop-color="#8FE0FF" stop-opacity="0"/></radialGradient>
+<filter id="aura" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="10"/></filter>
+<filter id="soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4"/></filter>`;
 
-L.push(rect(0, 0, W, H, "url(#sky)"));
-const twinkle = (x, y, delay) => `<g transform="translate(${x} ${y})"><g class="twk" style="animation-delay:${delay}s">`
-    + `${rect(2, 0, 2, 6, "#9DB4D3")}${rect(0, 2, 6, 2, "#9DB4D3")}${rect(2, 2, 2, 2, "#FFFFFF")}</g></g>`;
-for (let i = 0; i < 46; i++) {
-    const x = Math.round(R(16, W - 16)), y = Math.round(R(12, GROUND - 120));
-    L.push(i % 6 === 0 ? twinkle(x, y, -R(0, 3.4).toFixed(1)) : rect(x, y, 2, 2, "#8B949E", ` opacity="${R(0.25, 0.7).toFixed(2)}"`));
+// ---- the night: a few stars, and some that aren't just stars.
+// Easter egg: a constellation that spells ICYCLE. All fight long its
+// stars pass for ordinary ones; when the dust settles they light up and
+// join the dots.
+const STROKES = {
+    I: [[[0, 0], [2, 0]], [[1, 0], [1, 4]], [[0, 4], [2, 4]]],
+    C: [[[2.2, 0.5], [1.1, 0], [0, 0.9], [0, 3.1], [1.1, 4], [2.2, 3.5]]],
+    Y: [[[0, 0], [1.1, 1.9]], [[2.2, 0], [1.1, 1.9]], [[1.1, 1.9], [1.1, 4]]],
+    L: [[[0, 0], [0, 4], [2, 4]]],
+    E: [[[2, 0], [0, 0], [0, 4], [2, 4]], [[0, 2], [1.6, 2]]]
+};
+const SKY = { x: 318, y: 96, u: 15, step: 54 };
+{
+    const box = [SKY.x - 30, SKY.y - 30, SKY.x + 6 * SKY.step + 10, SKY.y + 4 * SKY.u + 30];
+    const twinkle = (x, y, delay) => `<g transform="translate(${x} ${y})"><g class="twk" style="animation-delay:${delay}s">`
+        + `${rect(3, 0, 3, 9, "#9DB4D3")}${rect(0, 3, 9, 3, "#9DB4D3")}${rect(3, 3, 3, 3, "#FFFFFF")}</g></g>`;
+    for (let i = 0; i < 54; i++) {
+        const x = Math.round(R(20, W - 20)), y = Math.round(R(84, GROUND - 230));
+        L.push(i % 6 === 0 ? twinkle(x, y, -R(0, 3.4).toFixed(1)) : rect(x, y, 3, 3, GRAY, ` opacity="${R(0.25, 0.65).toFixed(2)}"`));
+    }
+    // Decoys round the constellation, so its stars don't stand out in rows.
+    for (let i = 0; i < 34; i++)
+        L.push(rect(Math.round(R(box[0], box[2])), Math.round(R(box[1], box[3])), i % 3 ? 2 : 3, i % 3 ? 2 : 3, GRAY, ` opacity="${R(0.25, 0.6).toFixed(2)}"`));
+    let dim = "", lit = "";
+    [..."ICYCLE"].forEach((ch, i) => {
+        const ox = SKY.x + i * SKY.step, P = ([x, y]) => [r3(ox + x * SKY.u), r3(SKY.y + y * SKY.u)];
+        const dots = new Map(), lines = [];
+        for (const stroke of STROKES[ch]) {
+            stroke.forEach((p, k) => { const q = P(p); dots.set(q.join(), q); if (k) lines.push([P(stroke[k - 1]), q]); });
+        }
+        let letter = lines.map(([a, b]) => `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#4AB4F0" stroke-width="2" opacity=".85" shape-rendering="geometricPrecision"/>`).join("");
+        for (const [x, y] of dots.values()) {
+            const sz = rnd() < 0.5 ? 2 : 3;
+            dim += rect(x - sz / 2, y - sz / 2, sz, sz, GRAY, ` opacity="${R(0.25, 0.6).toFixed(2)}"`);
+            letter += `<circle cx="${x}" cy="${y}" r="11" fill="url(#starGlow)"/>` + rect(x - 3.5, y - 3.5, 7, 7, "#2F8FD8") + rect(x - 1.5, y - 1.5, 3, 3, "#FFFFFF");
+        }
+        lit += S.fade(letter, [[16.9 + i * 0.16, 0], [17.35 + i * 0.16, 1], [20.1, 1], [20.55, 0]]);
+    });
+    L.push(dim, lit);
 }
-// The ground: dark earth, a lit top edge, some pebbles.
-L.push(rect(0, GROUND, W, H - GROUND, "#121722") + rect(0, GROUND, W, 3, "#2C3650") + rect(0, GROUND + 3, W, 3, "#1B2233"));
-for (let i = 0; i < 40; i++) L.push(rect(Math.round(R(0, W) / 4) * 4, Math.round(R(GROUND + 10, H - 6) / 4) * 4, 4, 4, "#1E2638"));
+// The ground: just a line, like the rest of the README.
+L.push(rect(20, GROUND, W - 40, 3, GRAY, ' opacity=".35"'));
 
 // ---- the rift: a slit in the torch beam at 1.9, open by 2.4, swirling,
 // swelling as the double goes back through it, snapped shut at 16.4.
@@ -440,37 +527,34 @@ for (let i = 0; i < 40; i++) L.push(rect(Math.round(R(0, W) / 4) * 4, Math.round
     const opening = [0.02, 0.12, 0.4, 0.75].map((o, i) => riftAt(riftRows(o, i, 3 + i)));
     const swell = [1.12, 1.22].map((o, i) => riftAt(riftRows(o, i * 2, 9 + i)));
     const closing = [0.55, 0.2, 0.03].map((o, i) => riftAt(riftRows(o, i, 12 + i)));
-    back.push(S.fade(`<ellipse cx="${RIFT_C[0]}" cy="${RIFT_C[1]}" rx="190" ry="170" fill="url(#riftGlow)"/>`
-        + `<ellipse cx="${RIFT_C[0]}" cy="${GROUND + 2}" rx="90" ry="9" fill="#A46BFF" opacity=".25"/>`,
+    back.push(S.fade(`<ellipse cx="${RIFT_C[0]}" cy="${RIFT_C[1]}" rx="${190 * K}" ry="${170 * K}" fill="url(#riftGlow)"/>`
+        + `<ellipse cx="${RIFT_C[0]}" cy="${GROUND + 2}" rx="${90 * K}" ry="${9 * K}" fill="#A46BFF" opacity=".25"/>`,
         [[1.9, 0], [2.5, 1], [16.0, 1], [16.25, 1.3], [16.45, 0]]));
     back.push(S.seq(opening, 1.9, 0.13));
     back.push(S.win(S.loop(swirl, 10), [[2.42, 15.9]]));
     back.push(S.seq(swell, 15.9, 0.16));
     back.push(S.seq(closing, 16.22, 0.07));
     // Sparks crackling round it.
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 10; i++) {
         const a = R(0, 2 * Math.PI);
         back.push(S.win(`<g class="pop" style="animation-duration:${R(0.5, 1.1).toFixed(2)}s;animation-delay:-${R(0, 1).toFixed(2)}s">`
-            + `${rect(RIFT_C[0] + Math.cos(a) * R(36, 60), RIFT_C[1] + Math.sin(a) * R(60, 108), fx, fx, i % 2 ? "#DCC6FF" : "#FFFFFF")}</g>`, [[2.5, 15.9]]));
+            + `${rect(RIFT_C[0] + Math.cos(a) * R(36, 60) * K, RIFT_C[1] + Math.sin(a) * R(60, 108) * K, fx, fx, i % 2 ? "#DCC6FF" : "#FFFFFF")}</g>`, [[2.5, 15.9]]));
     }
     // Snapped shut: a flash and a ring of sparks.
+    front.push(flare(...RIFT_C, 160 * K, 16.43, 0.8, 0.25));
     front.push(burst(RIFT_C[0], RIFT_C[1], 16.43, { radius: 70, sparks: 14, glint: 120, color: "#DCC6FF", trail: "#A46BFF" }));
 }
-
-// ---- the screen darkening (under the pets: they blaze against it)
-const dim = S.fade(rect(0, 0, W, H, INK), [[0, 0.55], [1.9, 0.55], [2.6, 0.1], [3.2, 0], [5.6, 0], [5.75, 0.25], [6.05, 0.25],
-    [6.2, 0], [13.6, 0], [13.8, 0.62], [14.96, 0.62], [15.3, 0]]);
 
 // ---- the torch: out, on, the beam sweeping round to where the rift opens
 {
     const hold = at(HOME, TOP, Art.holdAt("aim"));
-    const aims = [[700, 190], [800, 340], [910, 170], RIFT_C];
+    const aims = [[620, 330], [760, 560], [910, 290], RIFT_C];
     const torchFor = (tx, ty, on) => {
         const ang = (Math.atan2(-(ty - hold[1]), tx - hold[0]) * 180) / Math.PI, tf = Art.flashlight(ang, on);
         const x0 = hold[0] - tf.grip[0] * fx, y0 = hold[1] - tf.grip[1] * fx, lens = [x0 + tf.lens[0] * fx, y0 + tf.lens[1] * fx];
         const beam = Art.beam((tx - lens[0]) / fx, (ty - lens[1]) / fx, 2, 15), spot = Art.spot(11);
-        const light = on ? `<g opacity=".3">${shapes(beam, fx, lens[0], lens[1], { y: "#FAD250", h: "#FFFFFF" })}</g>`
-            + `<g opacity=".35">${shapes(spot, fx, tx, ty, { h: "#FFFFFF", y: "#FAD250", g: "#FAD250@.5" })}</g>` : "";
+        const light = on ? `<g opacity=".32">${shapes(beam, fx, lens[0], lens[1], { y: "#FAD250", h: "#FFFFFF" })}</g>`
+            + `<g opacity=".4">${shapes(spot, fx, tx, ty, { h: "#FFFFFF", y: "#FAD250", g: "#FAD250@.5" })}</g>` : "";
         return light + pix(tf.rows, fx, x0, y0);
     };
     front.push(S.win(torchFor(...aims[0], false), [[0.2, 0.5]]));
@@ -517,8 +601,8 @@ const dim = S.fade(rect(0, 0, W, H, INK), [[0, 0.55], [1.9, 0.55], [2.6, 0.1], [
 
     // Jets: flames under its feet whenever it's in the air.
     const feet = [Art.X0 + 5.5, Art.H];
-    const flame = (dx, delay) => `<g class="rise" style="animation-delay:${delay}s;--dx:${R(-4, 4).toFixed(1)}px;--dy:30px">`
-        + `${effect("flame", feet[0] * px + dx, feet[1] * px + 8)}</g>`;
+    const flame = (dx, delay) => `<g class="rise" style="animation-delay:${delay}s;--dx:${R(-5, 5).toFixed(1)}px;--dy:${r3(30 * K)}px">`
+        + `${effect("flame", feet[0] * px + dx * K, feet[1] * px + 10)}</g>`;
     parts.push(S.win(flame(-14, 0) + flame(14, -0.13) + flame(0, -0.07), [[8.3, 11.5]]));
     // Sparks off its feet on the dynamo.
     const sparks = [[3, 16.5], [11, 17], [1, 14], [13, 15], [7, 17.4]].map(([sx, sy], i) =>
@@ -532,12 +616,12 @@ const dim = S.fade(rect(0, 0, W, H, INK), [[0, 0.55], [1.9, 0.55], [2.6, 0.1], [
 
     pets.push(S.move(parts.join(""), [
         [0, HOME, TOP], [8.3, HOME, TOP, 0, 1, "cubic-bezier(.4,0,.3,1)"], [9.3, ...AIR, 0, 1, "ease-in-out"],
-        [9.7, AIR[0], AIR[1] - 8, 0, 1, "ease-in-out"], [10.1, ...AIR, 0, 1, "ease-in-out"], [10.55, AIR[0], AIR[1] - 8, 0, 1, "ease-in-out"],
+        [9.7, AIR[0], AIR[1] - 12, 0, 1, "ease-in-out"], [10.1, ...AIR, 0, 1, "ease-in-out"], [10.55, AIR[0], AIR[1] - 12, 0, 1, "ease-in-out"],
         [11.0, ...AIR, 0, 1, "cubic-bezier(.5,0,.8,.6)"], [11.5, LAND, TOP], [14.6, LAND, TOP, 0, 1, "step-end"], [14.96, DEST, TOP]
     ], { still: [DEST, TOP] }));
 
     // "!" when the rift opens.
-    front.push(S.win(effect("bang", ...at(HOME, TOP, [HEAD[0] + 2, HEAD[1] - 5]), PAL, 5), [[2.6, 3.3]]));
+    front.push(S.win(effect("bang", ...at(HOME, TOP, [HEAD[0] + 2, HEAD[1] - 5]), PAL, 8), [[2.6, 3.3]]));
 }
 
 // ---- the double
@@ -568,9 +652,9 @@ const dim = S.fade(rect(0, 0, W, H, INK), [[0, 0.55], [1.9, 0.55], [2.6, 0.1], [
     const o = [TX + (Art.W - MID[0]) * px, TOP + MID[1] * px];
     const rift = [RIFT_C[0] - o[0], RIFT_C[1] - o[1]];
     pets.push(S.move(parts.join(""), [
-        [0, ...rift, -200, 0.12], [3.0, ...rift, -200, 0.12, "cubic-bezier(.2,.8,.3,1)"], [3.45, 110, -130, -30, 1, "cubic-bezier(.6,0,.9,.4)"],
-        [3.9, 0, 0, 0, 1], [6.05, 0, 0, 0, 1, "cubic-bezier(.2,.8,.3,1)"], [6.3, 30, -36, 0, 1, "ease-in"], [6.6, KNOCK, 0, 0, 1],
-        [14.96, KNOCK, 0, 0, 1, "cubic-bezier(.2,.8,.3,1)"], [15.4, 140, -120, 380, 0.85, "cubic-bezier(.6,0,.9,.4)"], [15.9, ...rift, 760, 0.1]
+        [0, ...rift, -200, 0.12], [3.0, ...rift, -200, 0.12, "cubic-bezier(.2,.8,.3,1)"], [3.45, 110 * K, -130 * K, -30, 1, "cubic-bezier(.6,0,.9,.4)"],
+        [3.9, 0, 0, 0, 1], [6.05, 0, 0, 0, 1, "cubic-bezier(.2,.8,.3,1)"], [6.3, 26, -50, 0, 1, "ease-in"], [6.6, KNOCK, 0, 0, 1],
+        [14.96, KNOCK, 0, 0, 1, "cubic-bezier(.2,.8,.3,1)"], [15.4, 120 * K, -150 * K, 380, 0.85, "cubic-bezier(.6,0,.9,.4)"], [15.9, ...rift, 760, 0.1]
     ], { origin: o }));
     front.push(say("rematch.", ...tat([HEAD[0] - 1, HEAD[1] - 1], false), 4.25, 5.05, { left: true }));
 }
@@ -578,13 +662,14 @@ const dim = S.fade(rect(0, 0, W, H, INK), [[0, 0.55], [1.9, 0.55], [2.6, 0.1], [
 // ---- the lightning cast (5.6-6.9)
 {
     const paw = at(HOME, TOP, Art.holdAt("cast")), hit = [TX + (Art.W - MID[0]) * px, TOP + MID[1] * px];
-    for (let i = 0; i < 5; i++) front.push(arc(cx(HOME) + R(-24, 24), GROUND - R(6, 40), 5.6 + R(0, 0.22)));
-    for (let i = 0; i < 6; i++) front.push(ember(cx(HOME) + R(-20, 20), GROUND - R(0, 20), 5.6 + R(0, 0.24), { len: 2, life: R(0.24, 0.36), vy: -R(140, 280) }));
+    for (let i = 0; i < 5; i++) front.push(arc(cx(HOME) + R(-24, 24) * K, GROUND - R(6, 40) * K, 5.6 + R(0, 0.22)));
+    for (let i = 0; i < 6; i++) front.push(ember(cx(HOME) + R(-20, 20) * K, GROUND - R(0, 20) * K, 5.6 + R(0, 0.24), { len: 2, life: R(0.24, 0.36), vy: -R(140, 280) }));
     front.push(S.win(effect("flash", ...paw), [[6.0, 6.24]]));
     front.push(bolt(paw, hit, 6.0, { hold: 0.42 }));
     back.push(impact(hit[0], hit[1], 6.05));
+    front.push(flare(hit[0], hit[1], 150 * K, 6.05, 0.9, 0.3));
     front.push(burst(hit[0], hit[1], 6.05, { color: "#FFFFFF" }));
-    for (let i = 0; i < 7; i++) { const a = R(0, 6.28), r = R(10, 44); front.push(arc(hit[0] + Math.cos(a) * r, hit[1] + Math.sin(a) * r, 6.05 + R(0, 0.5))); }
+    front.push(crackle(hit[0], hit[1], 7, 10, 44, 6.05, 0.5));
 }
 
 // ---- suit up (6.9-7.75); the double's bolt bounces off it (7.78)
@@ -592,83 +677,83 @@ const dim = S.fade(rect(0, 0, W, H, INK), [[0, 0.55], [1.9, 0.55], [2.6, 0.1], [
     const core = at(HOME, TOP, CORE);
     front.push(S.win(effect("core", ...core), [[6.9, 7.2]]));
     for (let i = 0; i < 26; i++) {
-        const a = R(0, 6.28), r = R(55, 120), ox = Math.cos(a) * r, oy = Math.sin(a) * r;
+        const a = R(0, 6.28), r = R(55, 120) * K, ox = Math.cos(a) * r, oy = Math.sin(a) * r;
         front.push(S.shot(effect("nano", core[0] + ox, core[1] + oy), 6.92 + i * 0.024, R(0.22, 0.34), { dx: -ox * 0.95, dy: -oy * 0.95, ease: "ease-in" }));
     }
     const visor = at(HOME, TOP, [HEAD[0] + 1.3, HEAD[1] + 5]);
     front.push(S.win(effect("flash", ...visor), [[7.75, 8.05]]));
-    for (let i = 0; i < 8; i++) front.push(S.shot(effect("nano", ...core), 7.75, 0.34, { dx: R(-70, 70), dy: R(-70, 50) }));
+    for (let i = 0; i < 8; i++) front.push(S.shot(effect("nano", ...core), 7.75, 0.34, { dx: R(-70, 70) * K, dy: R(-70, 50) * K }));
     front.push(say("suit up!", ...at(HOME, TOP, [HEAD[0] + 1, HEAD[1] - 1]), 7.8, 8.4));
 
     const paw = tat([Art.holdAt("cast")[0], Art.holdAt("cast")[1]]), chest = at(HOME, TOP, MID);
     front.push(bolt(paw, chest, 7.78, { hold: 0.3, pal: PINK, opts: { forks: 1 } }));
-    back.push(impact(chest[0] + 10, chest[1], 7.83, { big: false, pal: PINK }));
-    front.push(burst(chest[0] + 10, chest[1], 7.83, { radius: 40, sparks: 10, glint: 60, color: "#FFD6F5", trail: "#FF4FD8" }));
+    back.push(impact(chest[0] + 14, chest[1], 7.83, { big: false, pal: PINK }));
+    front.push(burst(chest[0] + 14, chest[1], 7.83, { radius: 40, sparks: 10, glint: 60, color: "#FFD6F5", trail: "#FF4FD8" }));
 }
 
 // ---- flight, a stream of lightning, web strands (8.3-11.0)
 {
-    front.push(puff(cx(HOME), GROUND - 6, 8.3, { to: 6, dx: -40, dy: -14 }) + puff(cx(HOME), GROUND - 6, 8.32, { to: 5, dx: 40, dy: -10 }));
+    front.push(puff(cx(HOME), GROUND - 8, 8.3, { to: 6, dx: -40, dy: -14 }) + puff(cx(HOME), GROUND - 8, 8.32, { to: 5, dx: 40, dy: -10 }));
     const paw = at(AIR[0], AIR[1], Art.gripAt("charge")), body = [TX + KNOCK + (Art.W - MID[0]) * px, TOP + MID[1] * px];
     const stream = [0, 1, 2].map(() => boltDraw(Art.bolt((body[0] - paw[0]) / bfx, (body[1] - paw[1]) / bfx, { pieces: 1, scale: 0.55, forks: 1 }), paw[0], paw[1], CYAN, [0]));
     front.push(S.win(S.loop(stream, 16), [[9.35, 10.15]]));
-    for (let i = 0; i < 10; i++) { const a = R(0, 6.28), r = R(14, 50); front.push(arc(body[0] + Math.cos(a) * r, body[1] + Math.sin(a) * r, 9.35 + R(0, 0.75))); }
+    front.push(crackle(body[0], body[1], 10, 14, 50, 9.35, 0.75));
 
     const hand = at(AIR[0], AIR[1], Art.gripAt("zap"));
-    const targets = [[body[0], body[1], 1], [body[0] - 54, GROUND - 2, 0], [body[0] + 58, GROUND - 2, 0]]
+    const targets = [[body[0], body[1], 1], [body[0] - 54 * K, GROUND - 2, 0], [body[0] + 58 * K, GROUND - 2, 0]]
         .map(([x, y, main]) => [(x - hand[0]) / fx, (y - hand[1]) / fx, main]);
     const growing = [0.3, 0.55, 0.8].map((g) => shapes(Art.strands(targets, 0, g), fx, hand[0], hand[1], WEB));
     const rippling = [0, 1.2, 2.4].map((ph) => shapes(Art.strands(targets, ph, 1), fx, hand[0], hand[1], WEB));
     front.push(S.seq(growing, 10.1, 0.05));
     front.push(S.win(S.loop(rippling, 10), [[10.25, 11.0]]));
-    front.push(puff(cx(LAND), GROUND - 6, 11.5, { to: 6, dx: -36, dy: -12 }) + puff(cx(LAND), GROUND - 6, 11.52, { to: 5, dx: 36, dy: -10 }));
+    front.push(puff(cx(LAND), GROUND - 8, 11.5, { to: 6, dx: -36, dy: -12 }) + puff(cx(LAND), GROUND - 8, 11.52, { to: 5, dx: 36, dy: -10 }));
     // Suit off: back into the core.
     const core = at(LAND, TOP, CORE);
     for (let i = 0; i < 16; i++) {
-        const a = R(0, 6.28), r = R(20, 80);
+        const a = R(0, 6.28), r = R(20, 80) * K;
         front.push(S.shot(effect("nano", core[0] + Math.cos(a) * r, core[1] + Math.sin(a) * r), 11.55 + i * 0.026, 0.24, { dx: -Math.cos(a) * r, dy: -Math.sin(a) * r, ease: "ease-in" }));
     }
     front.push(S.win(effect("core", ...core), [[12.0, 12.26]]));
 }
 
-// ---- the dynamo: lightning racing round the frame (12.0-13.6)
+// ---- the dynamo: lightning racing round the picture's edge (12.0-13.6)
 {
     const x0 = Math.round(cx(LAND)), glowLine = (pts, w, c, o) => `<polyline points="${pts}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="miter" opacity="${o}"/>`;
-    const hum = [0, 1, 2].map(() => { const e = edgeBolt(6, x0, 1); return glowLine(e.points, 2, "#5CCFFF", 0.7); });
+    const hum = [0, 1, 2].map(() => { const e = edgeBolt(7, x0, 1); return glowLine(e.points, 3, "#5CCFFF", 0.75); });
     let pulses = "";
     for (const dir of [1, -1]) {
-        const e = edgeBolt(6, x0, dir), id = S.uid("d");
+        const e = edgeBolt(7, x0, dir), id = S.uid("d");
         S.css.push(`@keyframes ${id}{from{stroke-dashoffset:0}to{stroke-dashoffset:-${r3(e.len / 2)}}}`);
-        for (const [dly, c, w] of [[0, "#FFFFFF", 4], [-0.27, "#D4F8FF", 3]])
-            pulses += `<polyline class="dash" style="animation-name:${id};animation-duration:.54s;animation-delay:${dly}s" points="${e.points}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="miter" stroke-dasharray="90 ${r3(e.len)}"/>`;
+        for (const [dly, c, w] of [[0, "#FFFFFF", 5], [-0.3, "#D4F8FF", 4]])
+            pulses += `<polyline class="dash" style="animation-name:${id};animation-duration:.6s;animation-delay:${dly}s" points="${e.points}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="miter" stroke-dasharray="120 ${r3(e.len)}"/>`;
     }
-    top.push(S.fade(`<g filter="url(#soft)">${hum[0].replace('stroke-width="2"', 'stroke-width="8"')}</g>` + S.loop(hum, 12) + pulses,
+    top.push(S.fade(`<g filter="url(#soft)">${hum[0].replace('stroke-width="3"', 'stroke-width="10"')}</g>` + S.loop(hum, 12) + pulses,
         [[12.0, 0], [12.25, 1], [13.6, 1], [13.9, 0]]));
 }
 
 // ---- the thunder charge (13.6-14.6)
 {
     const x = cx(LAND), feet = GROUND;
-    for (let i = 0; i < 12; i++) front.push(ember(x + R(-24, 24), feet - R(0, 34), 13.6 + R(0, 0.9), { color: ["#FFD84A", "#FFE98A", "#FFFFFF"][i % 3] }));
-    for (let i = 0; i < 8; i++) front.push(arc(x + R(-34, 34), feet - R(6, 44), 13.62 + R(0, 0.85)));
+    for (let i = 0; i < 14; i++) front.push(ember(x + R(-24, 24) * K, feet - R(0, 34) * K, 13.6 + R(0, 0.9), { color: ["#FFD84A", "#FFE98A", "#FFFFFF"][i % 3] }));
+    for (let i = 0; i < 9; i++) front.push(arc(x + R(-34, 34) * K, feet - R(6, 44) * K, 13.62 + R(0, 0.85)));
     // The ground breaking up under it: rocks flung up, to come down after it's gone.
-    for (let i = 0; i < 24; i++) {
-        const bit = i >= 14, r = rock(x + R(-44, 44), feet - 4, 13.72 + R(0, 0.06), { bit, vx: R(-180, 180), vy: -R(bit ? 380 : 260, bit ? 820 : 680), life: R(1.3, 1.9) });
+    for (let i = 0; i < 26; i++) {
+        const bit = i >= 15, r = rock(x + R(-44, 44) * K, feet - 4, 13.72 + R(0, 0.06), { bit, vx: R(-180, 180), vy: -R(bit ? 380 : 260, bit ? 820 : 680), life: R(1.3, 1.9) });
         (i % 3 === 0 ? front : back).push(r);
     }
-    // Cracks in the ground, glowing.
+    // Cracks along the ground, glowing.
     let cracks = "";
-    for (let i = 0; i < 5; i++) {
-        let cx = x + R(-10, 10), cy = feet + 1, pts = `${cx},${cy}`;
+    for (let i = 0; i < 4; i++) {
+        let qx = x + R(-10, 10), qy = feet + 1, pts = `${r3(qx)},${qy}`;
         const dir = i % 2 ? 1 : -1;
-        for (let k = 0; k < 4; k++) { cx += dir * R(8, 22); cy += R(2, 9); pts += ` ${Math.round(cx)},${Math.round(cy)}`; }
-        cracks += `<polyline points="${pts}" fill="none" stroke="#5CCFFF" stroke-width="5" opacity=".35"/><polyline points="${pts}" fill="none" stroke="#05070C" stroke-width="3"/>`;
+        for (let k = 0; k < 4; k++) { qx += dir * R(10, 30); qy += R(1, 5); pts += ` ${Math.round(qx)},${Math.round(qy)}`; }
+        cracks += `<polyline points="${pts}" fill="none" stroke="#5CCFFF" stroke-width="7" opacity=".35"/><polyline points="${pts}" fill="none" stroke="#211E30" stroke-width="4"/>`;
     }
     back.push(S.win(cracks, [[13.72, D - 0.3]]));
     // Lightning streaming up round it, taller and taller.
-    const cols = [0, 1, 2, 3].map((i) => ({ dx: (i % 2 ? 1 : -1) * R(18, 74), h: R(0.6, 1.2), lean: R(-24, 24) }));
+    const cols = [0, 1, 2, 3].map((i) => ({ dx: (i % 2 ? 1 : -1) * R(18, 74) * K, h: R(0.6, 1.2), lean: R(-24, 24) * K }));
     const columns = [0.15, 0.4, 0.65, 0.9].map((p) => [0, 1].map(() => cols.map((c) => {
-        const h = (50 + 170 * p) * c.h;
+        const h = (50 + 170 * p) * c.h * K;
         return boltDraw(Art.bolt(c.lean / bfx, h / bfx, { pieces: 1, scale: 0.42, forks: rnd() < 0.3 ? 1 : 0 }), x + c.dx - c.lean, feet - h, CYAN, [0]);
     }).join("")));
     columns.forEach((pair, i) => back.push(S.win(S.loop(pair, 14), [[13.7 + i * 0.225, 13.7 + (i + 1) * 0.225]])));
@@ -677,96 +762,69 @@ const dim = S.fade(rect(0, 0, W, H, INK), [[0, 0.55], [1.9, 0.55], [2.6, 0.1], [
 // ---- the thunder slash (14.6): gone, a bolt to where it lands, impact frames
 {
     const from = [cx(LAND), GROUND - (Art.H * px) / 2], to = [cx(DEST), GROUND - (Art.H * px) / 2];
-    const hit = [to[0] + 44, to[1] + 6];
+    const hit = [to[0] + 44 * K, to[1] + 6];
     // Speed lines streaking past.
-    for (let i = 0; i < 14; i++) {
-        const y = from[1] + (i % 2 ? 1 : -1) * R(14, 60), x = R(from[0] - 30, from[0] + 200), len = R(60, 140);
-        front.push(S.shot(rect(x, y, len, i % 3 ? 3 : 6, ["#FFFFFF", "#C9EEFF", "#8FE0FF"][i % 3]), 14.6 + ((x - from[0]) / 300) * 0.09, R(0.14, 0.26), { dx: R(40, 140) }));
+    for (let i = 0; i < 16; i++) {
+        const y = from[1] + (i % 2 ? 1 : -1) * R(14, 60) * K, x = R(from[0] - 30, from[0] + 200 * K), len = R(60, 140) * K;
+        front.push(S.shot(rect(x, y, len, i % 3 ? 4 : 8, ["#FFFFFF", "#8FE0FF", "#5CCFFF"][i % 3]), 14.6 + ((x - from[0]) / 400) * 0.09, R(0.14, 0.26), { dx: R(40, 140) * K }));
     }
     front.push(bolt(from, to, 14.6, { grow: 0.1, hold: 0.62, fadeOut: 0.36, opts: { floor: (GROUND - from[1]) / bfx - 7 } }));
     front.push(burst(from[0], from[1], 14.6, { radius: 40, sparks: 12, glint: 64, life: 0.28 }));
     back.push(impact(from[0], from[1], 14.6, { big: false }));
-    for (let i = 0; i < 9; i++) front.push(puff(from[0] - R(-14, 30), GROUND - 8, 14.6 + i * 0.016, { to: [8, 6, 4][i % 3], dx: -R(20, 100), dy: -R(10, 46), life: R(0.7, 1.25) }));
+    for (let i = 0; i < 9; i++) front.push(puff(from[0] - R(-14, 30) * K, GROUND - 10, 14.6 + i * 0.016, { to: [8, 6, 4][i % 3], dx: -R(20, 100), dy: -R(10, 46), life: R(0.7, 1.25) }));
 
     // The impact frames: black, white, black -- silhouettes and focus lines.
+    const INK = "#0B0B12", PAPER = "#F6F6FA";
     const sil = (fill, eyes) => pix(pose("run"), px, DEST, TOP, { pal: mono(fill, { e: eyes }) })
-        + pix(pose("fall"), px, TX + KNOCK + 14, TOP - 10, { flip: true, pal: mono(fill, { e: eyes }) });
-    const frameA = rect(0, 0, W, H, INK) + focus(hit[0], hit[1], 34, 130, "#F6F6FA") + sil("#F6F6FA", INK);
-    const frameB = rect(0, 0, W, H, "#F6F6FA") + focus(hit[0], hit[1], 30, 110, INK) + sil(INK, "#F6F6FA");
-    const frameC = rect(0, 0, W, H, INK) + focus(hit[0], hit[1], 40, 150, "#F6F6FA")
-        + boltDraw(Art.bolt((to[0] - from[0]) / bfx, (to[1] - from[1]) / bfx, { pieces: 1 }), from[0], from[1], mono("#F6F6FA", { N: "#F6F6FA@.35" }), [0])
-        + sil("#F6F6FA", "#FFD84A");
+        + pix(pose("fall"), px, TX + KNOCK + 14 * K, TOP - 10 * K, { flip: true, pal: mono(fill, { e: eyes }) });
+    // Easter egg: the artist's signature in the corner of the white one.
+    const sign = plainWord("ICYCLE"), sx = W - 44 - sign[0].length * 4, sy = H - 44 - 7 * 4;
+    const signature = rect(sx - 8, sy - 8, sign[0].length * 4 + 16, 7 * 4 + 16, PAPER) + pix(sign, 4, sx, sy, { pal: { c: INK } });
+    const frameA = rect(0, 0, W, H, INK) + focus(hit[0], hit[1], 36, 130, PAPER) + sil(PAPER, INK);
+    const frameB = rect(0, 0, W, H, PAPER) + focus(hit[0], hit[1], 32, 110, INK) + sil(INK, PAPER) + signature;
+    const frameC = rect(0, 0, W, H, INK) + focus(hit[0], hit[1], 42, 150, PAPER)
+        + boltDraw(Art.bolt((to[0] - from[0]) / bfx, (to[1] - from[1]) / bfx, { pieces: 1 }), from[0], from[1], mono(PAPER, { N: `${PAPER}@.35` }), [0])
+        + sil(PAPER, "#FFD84A");
     top.push(S.seq([frameA, frameB, frameC], 14.7, 0.087));
 
-    // Where it lands: the big star, a burst, chips flying back, static.
+    // Where it lands: the big star, a burst of light and sparks, chips
+    // flying back, static.
     back.push(impact(hit[0], hit[1], 14.96, { size: 1.5 }));
-    front.push(burst(hit[0], hit[1], 14.96, { radius: 90, sparks: 22, glint: 150, life: 0.45 }));
+    front.push(flare(hit[0], hit[1], 330 * K, 14.96, 1, 0.45));
+    front.push(burst(hit[0], hit[1], 14.96, { radius: 90, sparks: 24, glint: 150, life: 0.45 }));
     for (let i = 0; i < 16; i++) {
         const bit = i >= 7;
-        (i % 2 ? front : back).push(rock(hit[0] + R(4, 20) + R(-10, 10), hit[1] + R(-20, 20), 14.96, { bit, vx: -R(60, bit ? 360 : 240) + R(-60, 60), vy: -R(60, 320), life: R(1.1, 1.6) }));
+        (i % 2 ? front : back).push(rock(hit[0] + R(-6, 30) * K, hit[1] + R(-20, 20) * K, 14.96, { bit, vx: -R(60, bit ? 360 : 240) + R(-60, 60), vy: -R(60, 320), life: R(1.1, 1.6) }));
     }
-    for (let i = 0; i < 9; i++) { const a = R(0, 6.28), r = R(14, 46); front.push(arc(to[0] + Math.cos(a) * r, to[1] + Math.sin(a) * r, 14.96 + (i < 3 ? R(0, 0.06) : R(0.06, 0.9)))); }
-    for (let i = 0; i < 5; i++) { const u = R(0.1, 0.9); front.push(arc(from[0] + (to[0] - from[0]) * u + R(-10, 10), from[1] + R(-10, 10), 14.96 + R(0, 0.24))); }
+    front.push(crackle(to[0], to[1], 3, 14, 46, 14.96, 0.06) + crackle(to[0], to[1], 6, 14, 46, 15.02, 0.85));
+    for (let i = 0; i < 5; i++) { const u = R(0.1, 0.9); front.push(arc(from[0] + (to[0] - from[0]) * u + R(-10, 10) * K, from[1] + R(-10, 10) * K, 14.96 + R(0, 0.24))); }
 }
 
-// ---- the flash on each hit, and a shake
-const flash = S.fade(rect(0, 0, W, H, "#FFFFFF"), [[6.04, 0], [6.05, 0.35], [6.16, 0, "ease-out"], [14.96, 0], [14.961, 0.85], [15.32, 0, "ease-out"],
-    [16.42, 0], [16.43, 0.3], [16.6, 0]]);
+// ---- a shake on each hit
 const shakeId = S.uid("sh");
 {
     const pts = [[0, "transform:translate(0px,0px)"]];
-    const quake = (t0, dur, amp) => { for (let k = 0; k * 0.04 < dur; k++) { const a = amp * (1 - (k * 0.04) / dur); pts.push([t0 + k * 0.04, `transform:translate(${r3(R(-a, a))}px,${r3(R(-a, a))}px)`]); } pts.push([t0 + dur, "transform:translate(0px,0px)"]); };
+    const quake = (t0, dur, amp) => {
+        for (let k = 0; k * 0.04 < dur; k++) { const a = amp * K * (1 - (k * 0.04) / dur); pts.push([t0 + k * 0.04, `transform:translate(${r3(R(-a, a))}px,${r3(R(-a, a))}px)`]); }
+        pts.push([t0 + dur, "transform:translate(0px,0px)"]);
+    };
     quake(6.05, 0.3, 5); quake(7.83, 0.16, 3); quake(14.96, 0.6, 12); quake(16.43, 0.2, 4);
     S.css.push(`${S.keyframes(shakeId, pts)}.${shakeId}{animation:${shakeId} ${D}s linear infinite}`);
 }
 
 // ---- the souvenir it brings back: a rubber duck out of the closing rift
 {
-    const duck = Art.SOUVENIRS.duck, w = duck[0].length * fx, h = duck.length * fx, land = [740, GROUND - h];
-    const d = S.move(pix(duck, fx, land[0], land[1]), [[0, RIFT_C[0] - land[0] - w / 2, RIFT_C[1] - land[1] - h / 2, 0, 0.3], [16.44, RIFT_C[0] - land[0] - w / 2, RIFT_C[1] - land[1] - h / 2, 0, 0.3, "cubic-bezier(.2,.8,.3,1)"],
-        [16.7, 40, -90, -180, 1, "cubic-bezier(.6,0,.9,.5)"], [17.0, 0, 0, -360, 1, "ease-out"], [17.12, 0, -10, -360, 1, "ease-in"], [17.24, 0, 0, -360, 1]], { origin: [land[0] + w / 2, land[1] + h / 2] });
+    const duck = Art.SOUVENIRS.duck, w = duck[0].length * fx, h = duck.length * fx, land = [700, GROUND - h];
+    const from = [RIFT_C[0] - land[0] - w / 2, RIFT_C[1] - land[1] - h / 2];
+    const d = S.move(pix(duck, fx, land[0], land[1]), [[0, ...from, 0, 0.3], [16.44, ...from, 0, 0.3, "cubic-bezier(.2,.8,.3,1)"],
+        [16.7, 40 * K, -90 * K, -180, 1, "cubic-bezier(.6,0,.9,.5)"], [17.0, 0, 0, -360, 1, "ease-out"], [17.12, 0, -14, -360, 1, "ease-in"], [17.24, 0, 0, -360, 1]],
+        { origin: [land[0] + w / 2, land[1] + h / 2] });
     front.push(S.win(d, [[16.44, D]]));
 }
 
 front.push(say("gg", ...at(DEST, TOP, [HEAD[0] + 1, HEAD[1] - 1]), 17.0, 20.3));
 
 // ---- the HUD: fighting-game health bars, "FIGHT!" and "K.O."
-const FONT = {
-    F: ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
-    I: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "#####"],
-    G: [".####", "#....", "#....", "#.###", "#...#", "#...#", ".####"],
-    H: ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
-    T: ["#####", "..#..", "..#..", "..#..", "..#..", "..#..", "..#.."],
-    "!": ["#", "#", "#", "#", "#", ".", "#"],
-    K: ["#...#", "#..#.", "#.#..", "##...", "#.#..", "#..#.", "#...#"],
-    O: [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
-    ".": [".", ".", ".", ".", ".", ".", "#"]
-};
-// A word in chunky pixel letters drawn like the pet: each font pixel 2 x 2,
-// a dark outline, the light rim outside it.
-function pixelWord(word) {
-    const gap = 3, widths = [...word].map((ch) => FONT[ch][0].length * 2);
-    const w = widths.reduce((a, b) => a + b, 0) + gap * (word.length - 1) + 4, h = 18;
-    const g = Array.from({ length: h }, () => Array(w).fill(" "));
-    let ox = 2;
-    [...word].forEach((ch, i) => {
-        FONT[ch].forEach((row, y) => [...row].forEach((v, x) => {
-            if (v !== "#") return;
-            for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) g[2 + y * 2 + dy][ox + x * 2 + dx] = y >= 5 ? "C" : "c";
-        }));
-        ox += widths[i] + gap;
-    });
-    const near = (x, y, test, diag) => [[1, 0], [-1, 0], [0, 1], [0, -1], ...(diag ? [[1, 1], [1, -1], [-1, 1], [-1, -1]] : [])]
-        .some(([dx, dy]) => test((g[y + dy] || [])[x + dx]));
-    const mark = (ch, test, diag) => {
-        const hits = [];
-        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (g[y][x] === " " && near(x, y, test, diag)) hits.push([x, y]);
-        hits.forEach(([x, y]) => (g[y][x] = ch));
-    };
-    mark("#", (c) => c === "c" || c === "C", true);
-    mark("R", (c) => c === "#", false);
-    return g.map((r) => r.join(""));
-}
 // Slammed onto the screen at `a`, gone at `b`.
 function slam(word, cell, cy, a, b, pal) {
     const rows = pixelWord(word), w = rows[0].length * cell, h = rows.length * cell, id = S.uid("t");
@@ -785,43 +843,38 @@ function tween(content, pts, origin) {
 function hpBar(x, y, w, h, color, shade, name, right, hp, trail) {
     const o = [right ? x + w : x, y];
     const lv = (pts) => pts.map(([t, v, e]) => [t, `scaleX(${v})`, e]);
-    const label = `<text x="${right ? x + w : x}" y="${y + h + 22}" text-anchor="${right ? "end" : "start"}" font-family="${SANS}" font-weight="800" font-size="15" letter-spacing="1.5" fill="#F2F2F8" stroke="#211E30" stroke-width="3" paint-order="stroke">${name}</text>`;
-    return rect(x - 4, y - 4, w + 8, h + 8, "#211E30") + rect(x - 2, y - 2, w + 4, h + 4, "#A2B8C9") + rect(x, y, w, h, "#1A1426")
+    const label = `<text x="${right ? x + w : x}" y="${y + h + 28}" text-anchor="${right ? "end" : "start"}" font-family="${SANS}" font-weight="800" font-size="19" letter-spacing="2" fill="#F2F2F8" stroke="#211E30" stroke-width="4" paint-order="stroke">${name}</text>`;
+    return rect(x - 5, y - 5, w + 10, h + 10, "#211E30") + rect(x - 2, y - 2, w + 4, h + 4, "#A2B8C9") + rect(x, y, w, h, "#1A1426")
         + tween(rect(x, y, w, h, "#FFF3B0"), lv(trail), o)
-        + tween(rect(x, y, w, h, color) + rect(x, y + h - 4, w, 4, shade) + rect(x, y + 2, w, 2, "#FFFFFF", ' opacity=".45"'), lv(hp), o)
+        + tween(rect(x, y, w, h, color) + rect(x, y + h - 5, w, 5, shade) + rect(x, y + 3, w, 3, "#FFFFFF", ' opacity=".45"'), lv(hp), o)
         + label;
 }
 {
-    const y = 22, h = 14, w = 330;
-    const me = hpBar(64, y, w, h, "#70BE60", "#50924C", "RASCAL", false,
+    const y = 30, h = 18, w = 360;
+    const mine = hpBar(56, y, w, h, "#70BE60", "#50924C", "RASCAL", false,
         [[0, 1], [7.83, 1, "step-end"], [7.86, 0.96]], [[0, 1], [8.2, 1, "ease-in-out"], [8.6, 0.96]]);
-    const them = hpBar(W - 64 - w, y, w, h, "#FF4FD8", "#B02C94", "RIFT TWIN", true,
+    const theirs = hpBar(W - 56 - w, y, w, h, "#FF4FD8", "#B02C94", "RIFT TWIN", true,
         [[0, 1], [6.05, 1, "step-end"], [6.08, 0.7], [9.35, 0.7], [10.15, 0.4], [14.96, 0.4, "step-end"], [14.99, 0]],
         [[0, 1], [6.4, 1, "ease-in-out"], [6.9, 0.7], [9.7, 0.7], [10.5, 0.4], [15.3, 0.4, "ease-in-out"], [15.9, 0]]);
-    const vs = `<text x="${W / 2}" y="${y + h - 1}" text-anchor="middle" font-family="${SANS}" font-weight="900" font-style="italic" font-size="22" fill="#FAD250" stroke="#211E30" stroke-width="4" paint-order="stroke">VS</text>`;
-    top.unshift(S.fade(me + them + vs, [[4.9, 0], [5.15, 1], [D - 0.9, 1], [D - 0.6, 0]]));
+    const vs = `<text x="${W / 2}" y="${y + h + 1}" text-anchor="middle" font-family="${SANS}" font-weight="900" font-style="italic" font-size="30" fill="#FAD250" stroke="#211E30" stroke-width="5" paint-order="stroke">VS</text>`;
+    top.unshift(S.fade(mine + theirs + vs, [[4.9, 0], [5.15, 1], [D - 0.9, 1], [D - 0.6, 0]]));
     const GOLD = { c: "#FAD250", C: "#F0703C", "#": "#211E30", R: "#FFFFFF" };
     const RED = { c: "#FF5A6A", C: "#B0303E", "#": "#211E30", R: "#FFFFFF" };
-    top.push(slam("FIGHT!", 5, 150, 4.98, 5.62, GOLD));
-    top.push(slam("K.O.", 7, 150, 15.05, 16.7, RED));
+    top.push(slam("FIGHT!", 8, 250, 4.98, 5.62, GOLD));
+    top.push(slam("K.O.", 11, 250, 15.05, 16.7, RED));
 }
 
-// ---- in from black, out to black
-const curtain = S.fade(rect(0, 0, W, H, INK), [[0, 1], [0.7, 0], [D - 0.7, 0], [D, 1]]);
-
-const body = `<g clip-path="url(#card)">
+// ---- in from nothing, out to nothing (the loop's seam)
+const body = S.fade(`<g clip-path="url(#card)">
 <g class="${shakeId}">
 ${L.join("\n")}
-${dim}
 ${back.join("\n")}
 ${pets.join("\n")}
 ${front.join("\n")}
-${flash}
 </g>
 ${top.join("\n")}
-${curtain}
-</g>`;
+</g>`, [[0, 0], [0.6, 1], [D - 0.6, 1], [D, 0]], { base: 1 });
 
-const svg = S.svg(body, "Rascal, a pixel raccoon in a green dino hood, fights its purple double from a workspace rift: torch, lightning bolts, the nano suit, jet flight, web strands, the dynamo, a thunder-charged dash with impact frames, then a victory flex", defs);
+const svg = S.svg(body, "Rascal, a pixel raccoon in a green dino hood, fights its purple double from a workspace rift: torch, lightning bolts, the nano suit, jet flight, web strands, the dynamo, a thunder-charged dash with impact frames, K.O., then a victory flex", defs);
 fs.writeFileSync(OUT, svg);
-console.log(`${path.basename(OUT)}  ${(svg.length / 1024).toFixed(1)} KB, ${S.n} animations`);
+console.log(`${path.basename(OUT)}  ${W}x${H}  ${(svg.length / 1024).toFixed(1)} KB, ${S.n} animations`);
