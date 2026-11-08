@@ -81,7 +81,7 @@ export const TOKENS = {
     b1: ["#121821", "#e6ebf0"], b2: ["#18202d", "#d8dfe6"], b3: ["#1e2636", "#cbd3dc"], b4: ["#2a3448", "#b8c2cd"], b5: ["#0c1118", "#9da8b4"],
     w0: ["#0e131b", "#aeb8c3"], w1: ["#1f2a3b", "#c2cbd5"],
     cl1: ["#1a212e", "#e7ecf1"], cl2: ["#242d3d", "#d9e0e7"], cl3: ["#36435a", "#f7f9fb"],
-    st: ["#8b949e", "#8c959f"], hz: ["#30363d", "#d0d7de"], ink: ["#ffffff", "#1f2328"]
+    st: ["#8b949e", "#8c959f"], hz: ["#30363d", "#d0d7de"], ink: ["#ffffff", "#1f2328"], mist: ["#c8d3e6", "#6e7781"], fgc: ["#000000", "#aab3bc"]
 };
 
 export const r1 = (n) => Math.round(n * 10) / 10;
@@ -176,6 +176,28 @@ export function pathAt(pts, t) {
     return pts.at(-1);
 }
 
+// A smooth curve through (ts, ys) that never overshoots them (monotone
+// cubic Hermite, Fritsch-Carlson).
+export function monotone(ts, ys) {
+    const n = ts.length, d = [], m = new Array(n).fill(0);
+    for (let i = 0; i < n - 1; i++) d[i] = (ys[i + 1] - ys[i]) / (ts[i + 1] - ts[i] || 1e-6);
+    m[0] = d[0]; m[n - 1] = d[n - 2];
+    for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+    for (let i = 0; i < n - 1; i++) {
+        if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+        const a = m[i] / d[i], b = m[i + 1] / d[i], h = a * a + b * b;
+        if (h > 9) { const tau = 3 / Math.sqrt(h); m[i] = tau * a * d[i]; m[i + 1] = tau * b * d[i]; }
+    }
+    return (t) => {
+        if (t <= ts[0]) return ys[0];
+        if (t >= ts[n - 1]) return ys[n - 1];
+        let i = 0;
+        while (t > ts[i + 1]) i++;
+        const h = ts[i + 1] - ts[i], u = (t - ts[i]) / h, u2 = u * u, u3 = u2 * u;
+        return (2 * u3 - 3 * u2 + 1) * ys[i] + (u3 - 2 * u2 + u) * h * m[i] + (-2 * u3 + 3 * u2) * ys[i + 1] + (u3 - u2) * h * m[i + 1];
+    };
+}
+
 // ---------------------------------------------------------------- the clock
 
 export const W = 960, H = 720, D = 90;
@@ -260,24 +282,58 @@ class Scene {
     // The camera: [t, cx, cy, zoom, roll, easing] -- the world point (cx, cy)
     // in the middle of the picture, zoomed and rolled round it. A layer at
     // depth f (1 the action, less further back) moves and zooms less.
+    // With three keys or more it glides through them on a smooth curve
+    // (never stopping dead at one, never overshooting), like a camera on a
+    // crane, sampled finely.
     camera(content, pts, f = 1) {
-        const steps = pts.map(([t, cx, cy, z, r = 0, e]) => {
+        const at = (t, cx, cy, z, r = 0) => {
             const lx = ANCHOR[0] + f * (cx - ANCHOR[0]), ly = ANCHOR[1] + f * (cy - ANCHOR[1]), lz = z ** f;
-            return [t, `transform:translate(${this.W / 2}px,${this.H / 2}px) rotate(${r1(r)}deg) scale(${r3(lz)}) translate(${r1(-lx)}px,${r1(-ly)}px)`, e];
-        });
+            return `transform:translate(${this.W / 2}px,${this.H / 2}px) rotate(${r1(r)}deg) scale(${r3(lz)}) translate(${r1(-lx)}px,${r1(-ly)}px)`;
+        };
+        // ("cut" between keys: the camera jumps there, a cut to a new shot.)
+        const groups = [[]];
+        for (const p of pts) p === "cut" ? groups.push([]) : groups.at(-1).push(p);
+        const steps = [];
+        for (const g of groups) {
+            let s;
+            if (g.length < 3) s = g.map(([t, cx, cy, z, r = 0, e]) => [t, at(t, cx, cy, z, r), e]);
+            else {
+                const ts = g.map((p) => p[0]), curves = [1, 2, 3, 4].map((k) => monotone(ts, g.map((p) => p[k] ?? 0)));
+                const times = new Set(ts);
+                for (let t = ts[0]; t < ts.at(-1); t += 1 / 8) times.add(Math.round(t * 1000) / 1000);
+                s = [...times].sort((a, b) => a - b).map((t) => [t, at(t, ...curves.map((c) => c(t)))]);
+            }
+            s.at(-1)[2] = "step-end";
+            steps.push(...s);
+        }
+        // (A shot that ends where the next begins ends a hair before it.)
+        for (let i = 1; i < steps.length; i++) if (steps[i - 1][2] === "step-end" && steps[i][0] - steps[i - 1][0] < 0.002) steps[i - 1][0] = steps[i][0] - 0.002;
         return `<g class="${this.anim("c", steps, "transform-origin:0 0")}">${content}</g>`;
     }
-    // Shaking: [t0, duration, amplitude] jolts, dying away, on 1s.
+    // Shaking: [t0, duration, amplitude] jolts, swinging side to side and
+    // dying away.
     quake(content, jolts) {
         const pts = [[-this.off, "transform:translate(0px,0px)"]];
         for (const [t0, dur, amp] of jolts) {
-            for (let k = 0; k * 0.042 < dur; k++) {
-                const a = amp * (1 - (k * 0.042) / dur);
-                pts.push([t0 + k * 0.042, `transform:translate(${r1(R(-a, a))}px,${r1(R(-a, a))}px)`]);
+            for (let k = 0; k * 0.045 < dur; k++) {
+                const a = amp * (1 - (k * 0.045) / dur) ** 1.3, side = k % 2 ? 1 : -1;
+                pts.push([t0 + k * 0.045, `transform:translate(${r1(side * R(a * 0.5, a))}px,${r1(R(-a, a) * 0.7)}px)`]);
             }
             pts.push([t0 + dur, "transform:translate(0px,0px)"]);
         }
-        return `<g class="${this.anim("q", pts, "", "step-end")}">${content}</g>`;
+        return `<g class="${this.anim("q", pts, "", "ease-in-out")}">${content}</g>`;
+    }
+    // Squash and stretch: at t it's squashed (sx, sy) round `origin`, springs
+    // past, and settles over dur. (Nest them for more than one.)
+    squash(content, t, { origin = [90, 172], sx = 1.22, sy = 0.78, dur = 0.3 } = {}) {
+        dur = Math.round(dur * 20) / 20;
+        const k = `sq${Math.round(dur * 100)}`;
+        if (!this.shared.has(k)) {
+            this.shared.add(k);
+            const p = (dur / this.D) * 100;
+            this.css.push(`@keyframes ${k}{0%{transform:scale(var(--sx),var(--sy))}${r3(p * 0.35)}%{transform:scale(calc(2 - var(--sx)*.97),calc(2 - var(--sy)*.97))}${r3(p * 0.7)}%{transform:scale(calc(.5 + var(--sx)*.5),calc(.5 + var(--sy)*.5))}${r3(p)}%,100%{transform:scale(1,1)}}.${k}{animation:${k} ${this.D}s ease-out infinite}`);
+        }
+        return `<g class="${k}" style="animation-delay:${r3(t + this.off)}s;--sx:${sx};--sy:${sy};transform-origin:${origin[0]}px ${origin[1]}px">${content}</g>`;
     }
     // Opacity along [t, value, easing].
     fade(content, pts, { base = 0 } = {}) {
@@ -365,6 +421,16 @@ ${classes}
 .orb{animation:orb 2.4s linear infinite}
 @keyframes orb{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
 .flk{animation:flk 2.2s step-end infinite}
+.breathe{animation:breathe 2.4s ease-in-out infinite;transform-origin:90px 172px}
+@keyframes breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.025,.97)}}
+.mist{animation:mist 16s ease-in-out infinite alternate}
+@keyframes mist{0%{transform:translate(-120px,0)}100%{transform:translate(160px,-6px)}}
+.wave{animation:wave 1.3s ease-in-out infinite}
+@keyframes wave{0%,100%{transform:skewY(0deg) scaleX(1)}50%{transform:skewY(7deg) scaleX(.92)}}
+.shoot{animation:shoot 9s linear infinite;opacity:0}
+@keyframes shoot{0%,88%{opacity:0;transform:translate(0,0)}89%{opacity:1}95%{opacity:0;transform:translate(-520px,260px)}100%{opacity:0;transform:translate(-520px,260px)}}
+.mote{animation:mote 7s ease-in-out infinite;opacity:0}
+@keyframes mote{0%{opacity:0;transform:translate(0,0)}20%{opacity:.7}80%{opacity:.6}100%{opacity:0;transform:translate(var(--dx),var(--dy))}}
 @keyframes flk{0%{opacity:1}8%{opacity:.2}10%{opacity:1}52%{opacity:.35}54%{opacity:1}57%{opacity:.25}60%{opacity:1}}
 ${loops}
 ${sizes.map((N) => `.f${N}`).join(",")}{opacity:0;animation-timing-function:step-end;animation-iteration-count:infinite}
@@ -394,11 +460,24 @@ export const use = (id, extra = "") => `<use href="#${id}"${extra}/>`;
 // A shot: from t0 to t1, the world through the camera -- far, mid, the
 // action, the foreground, each at its own depth -- a backdrop behind and
 // anything in front in picture units; shaken by `quake`.
-export function shot(t0, t1, { cam, main = "", far = use("far"), mid = use("mid"), ground = use("ground"), fg = "", bg = "", screen = "", quake, wrap }) {
+// The foreground that goes with each kind of ground, nearest the camera.
+const FG = { [use("ground")]: use("fg"), [use("street")]: use("fgCity") };
+export function shot(t0, t1, opts) { shotIn([[t0, t1]], opts); }
+function shotIn(windows, { cam, main = "", far = use("far"), mid = use("mid"), ground = use("ground"), fg = FG[ground] || "", bg = "", screen = "", quake, wrap }) {
     let view = (far ? S.camera(far, cam, 0.3) : "") + (mid ? S.camera(mid, cam, 0.6) : "") + S.camera((ground || "") + main, cam, 1) + (fg ? S.camera(fg, cam, 1.3) : "");
     if (wrap) view = wrap(view);
-    if (quake) view = S.quake(view, quake);
-    shots.push(S.win(bg + view + screen, [[t0, t1]]));
+    if (quake?.length) view = S.quake(view, quake);
+    shots.push(S.win(bg + view + screen, windows));
+}
+// Several shots of the same place, cut together: one world (`common`, and
+// the layers), the camera cutting from framing to framing; each shot's own
+// things shown only in it.
+export function sequence(world, segs) {
+    const cam = [], windows = [];
+    segs.forEach((s, i) => { if (i) cam.push("cut"); cam.push(...s.cam); });
+    for (const { t0, t1 } of segs) windows.at(-1)?.[1] === t0 ? (windows.at(-1)[1] = t1) : windows.push([t0, t1]);
+    const only = (k) => segs.map((s) => (s[k] ? S.win(s[k], [[s.t0, s.t1]]) : "")).join("");
+    shotIn(windows, { ...world, cam, main: (world.common || "") + only("main"), bg: only("bg"), screen: only("screen"), quake: segs.flatMap((s) => s.quake || []) });
 }
 // A shot in picture units, no camera.
 export const flatShot = (t0, t1, html) => shots.push(S.win(html, [[t0, t1]]));

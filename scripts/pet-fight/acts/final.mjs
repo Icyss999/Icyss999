@@ -8,12 +8,12 @@
 // the stars (another ICYCLE); the world folds back into the page, and Rascal
 // runs home along the line -- to where it all started.
 
-import { S, R, rnd, rect, pix, place, poly, r1, use, shot, shots, defs, W, H, D, GROUND, TOP, PX, fx, K, Art, PAL, TWIN, TWIN2, CYAN, PINK, GOLD, SMOKE, INK, PAPER, mono, word, wordW, flatShot } from "../core.mjs";
+import { S, R, rnd, rect, pix, place, poly, r1, use, shot, shots, defs, sequence, W, H, D, GROUND, TOP, PX, fx, K, Art, PAL, TWIN, TWIN2, CYAN, PINK, GOLD, SMOKE, INK, PAPER, mono, word, wordW, flatShot } from "../core.mjs";
 import * as F from "../fx.mjs";
 import { pose, rA, tA, rB, rLoop, rLoopB, tLoop, actor, ghosts, rAt, tAt, paw, grip, FACE, MID, CORE, sil, glowEyes, cracked, nanoOff, jets, ARMOR, C0 } from "../cast.mjs";
 import { rift, riftGlow, RIFT_C, pillar, toppled, LPX, RPX, rubble, constellation, SKY } from "../sets.mjs";
 import { wind, floating, tearMask, PAGE_CAM, RIFT_ON_PAGE } from "./open.mjs";
-import { signature, R0 } from "./clash.mjs";
+import { signature, R0, sq, foot } from "./clash.mjs";
 import { wreck, plumes, FIELD_PLUMES } from "./city.mjs";
 
 const { hit, ring, dustRing, debris, embers, crackle, puff, flare, streaks, trail, bolt, boltOnce, explosion, effect, aura, glint, rock, floatRock, GOLD_ARC, PINK_ARC, PINK_LINES, GOLD_LINES } = F;
@@ -29,11 +29,14 @@ const farCut = use("sky") + mtnCut;
 const bigCrater = F.crater(CX, 61.5, 2.2, { glow: "#FF4FD8" });
 const ROCKS = rubble(20, 700, 2500);
 const field = (smoke = true) => rift() + wreck() + ROCKS + bigCrater + (smoke ? plumes([...FIELD_PLUMES, [CX, 5]]) : "");
+// The battlefield's shots, cut together over one battlefield.
+const fsegs = [];
+const fseg = (t0, t1, s) => fsegs.push({ t0, t1, ...s });
 
 // ---- the dust dome, from far off.
-shot(62.2, 63.0, {
+fseg(62.2, 63.0, {
     cam: [[62.2, 1650, 650, 0.36, 0, "ease-out"], [63.0, 1650, 660, 0.4, 0]],
-    main: field() + Array.from({ length: 20 }, (_, i) => puff(CX + R(-60, 60), GROUND - R(0, 60), 61.5 + R(0, 0.4), { pal: SMOKE, to: [14, 12, 10][i % 3], dx: R(-260, 260), dy: -R(150, 420), life: R(1.6, 2.4), opacity: 0.85, mode: "io" })).join("")
+    main: Array.from({ length: 20 }, (_, i) => puff(CX + R(-60, 60), GROUND - R(0, 60), 61.5 + R(0, 0.4), { pal: SMOKE, to: [14, 12, 10][i % 3], dx: R(-260, 260), dy: -R(150, 420), life: R(1.6, 2.4), opacity: 0.85, mode: "io" })).join("")
         + ring(CX, GROUND, 62.2, { r: 1200, flat: 0.08, width: 6, life: 0.8 }) + dustRing(CX, 62.2, 16, 700),
     quake: [[62.2, 0.6, 10]]
 });
@@ -42,11 +45,11 @@ shot(62.2, 63.0, {
 const rPts = [[63.0, RS, 300], [63.3, RS, TOP, 0, 1], [70.6, RS, TOP]];
 const tPts = [[63.0, CX - 90, TOP + 80], [64.0, TF, TOP, 0, 1, "ease-out"], [79, TF, TOP]];
 {
-    const rBody = S.win(rLoop("fly", ARMOR) + jets(), [[63.0, 63.3]]) + S.win(rA(pose("land", 0, ARMOR)), [[63.3, 63.45]]) + S.seq(nanoOff(), 63.45, 0.05) + S.win(rA(pose("land")), [[63.65, 65.0]]);
-    const tBody = S.win(tLoop("climb", {}, TWIN2), [[63.0, 64.0]]) + S.win(tA(pose("land"), TWIN2), [[64.0, 65.0]]) + S.win(cracked(5), [[63.0, 65.0]]);
-    shot(63.0, 65.0, {
+    const rBody = S.win(rLoop("fly", ARMOR) + jets(), [[63.0, 63.3]]) + S.win(rA(pose("land", 0, ARMOR)), [[63.3, 63.45]]) + S.seq(nanoOff(), 63.45, 0.05) + S.win(`<g class="breathe">${rA(pose("land"))}</g>`, [[63.65, 65.0]]);
+    const tBody = S.win(tLoop("climb", {}, TWIN2), [[63.0, 64.0]]) + S.win(`<g class="breathe">${tA(pose("land"), TWIN2)}</g>`, [[64.0, 65.0]]) + S.win(cracked(5), [[63.0, 65.0]]);
+    fseg(63.0, 65.0, {
         cam: [[63.0, 1640, 760, 0.6, 0, "ease-out"], [65.0, 1640, 770, 0.67, 1]],
-        main: field() + actor(rBody, rPts) + actor(tBody, tPts) + dustRing(RS + 90, 63.3, 8, 120) + F.rays(2050, 330, 110, 150, 6, 1100)
+        main: F.shadowOf(rPts) + F.shadowOf(tPts) + actor(sq(rBody, [[63.3, 1.35, 0.68]]), rPts) + actor(sq(tBody, [[64.0, 1.15, 0.86]]), tPts) + dustRing(RS + 90, 63.3, 8, 120) + F.motes(30, 900, 2500, 500, GROUND) + F.rays(2050, 330, 110, 150, 6, 1100)
             + F.heat(RS + 20, RS + 160, TOP + 40, 8) + F.heat(TF + 20, TF + 160, TOP + 40, 8, "#FFB0F0") + floating(18, 1000, 2400, 600, GROUND) + wind(14, 900, 2500, 600, GROUND, { dx: [80, 160], op: 0.4 })
     });
 }
@@ -68,27 +71,27 @@ const tPts = [[63.0, CX - 90, TOP + 80], [64.0, TF, TOP, 0, 1, "ease-out"], [79,
         + pet + columns + orbit("orbF") + crackle(cxy[0], cxy[1], 26, 30, 150, t0, t1 - t0, GOLD_ARC) + embers(cxy[0], gy, t0, 30, 160, t1 - t0) + F.heat(cxy[0] - 120, cxy[0] + 120, oy + 60, 14)
         + F.focusFlicker(cxy[0], cxy[1], 67.4, 0.5, { fill: "#FFF3B0", op: 0.3, inner: 300 });
     const twinFar = place(S.loop(Array.from({ length: 2 }, (_, f) => tA(pose("charge", f), TWIN2)), 9) + cracked(5) + aura(pose("charge"), "#FF4FD8", { flip: true }), TF, TOP);
-    shot(t0, t1, {
+    fseg(t0, t1, {
         cam: [[t0, 300, 760, z, -3, "cubic-bezier(.45,0,.55,1)"], [t1, 2700, 760, z, 3]],
-        main: field() + twinFar + Array.from({ length: 14 }, () => floatRock(R(200, 2900), t0 + R(0, 1.5), 71.5, R(60, 300), [R(-500, 500), R(-300, 80)])).join(""),
+        main: twinFar + Array.from({ length: 14 }, () => floatRock(R(200, 2900), t0 + R(0, 1.5), 71.5, R(60, 300), [R(-500, 500), R(-300, 80)])).join(""),
         screen, quake: [[t0, t1 - t0, 3]]
     });
 }
 
 // ---- the twin, charging too: a pillar of pink light.
-shot(67.9, 68.5, {
+fseg(67.9, 68.5, {
     cam: [[67.9, TF + 90, 770, 2.0, 10, "ease-out"], [68.5, TF + 90, 760, 2.25, 12]],
     bg: `<circle cx="480" cy="200" r="460" fill="url(#pinkFlare)" opacity=".35"/>`,
-    main: field(false) + place(aura(pose("charge"), "#FF4FD8", { flip: true, k: 1.5 }) + tLoop("charge", {}, TWIN2) + cracked(5), TF, TOP) + F.rays(TF + 90, TOP + 90, -120, -60, 9, 900, { grad: "pinkRay" })
+    main: place(aura(pose("charge"), "#FF4FD8", { flip: true, k: 1.5 }) + tLoop("charge", {}, TWIN2) + cracked(5), TF, TOP) + F.rays(TF + 90, TOP + 90, -120, -60, 9, 900, { grad: "pinkRay" })
         + crackle(TF + 90, TOP + 90, 18, 30, 140, 67.9, 0.6, PINK_ARC) + F.heat(TF, TF + 180, TOP + 30, 12, "#FFB0F0") + F.spiderweb(TF + 90, GROUND + 3, 300, 67.9, { glow: "#FF4FD8", dur: 0.4 }),
     quake: [[67.9, 0.6, 5]]
 });
 // ---- in on Rascal's eyes.
 {
     const face = rAt(RS, TOP, FACE);
-    shot(68.5, 69.4, {
+    fseg(68.5, 69.4, {
         cam: [[68.5, face[0] - 10, face[1] - 15, 1.3, -4, "cubic-bezier(.8,0,.2,1)"], [69.0, face[0], face[1], 4.6, -8, "linear"], [69.4, face[0], face[1], 4.9, -8]],
-        main: field(false) + place(aura(pose("charge"), "#FFC43A") + rA(pose("charge")) + S.fade(glowEyes(0, 0), [[68.9, 0], [68.95, 1]]), RS, TOP) + crackle(face[0], face[1], 14, 20, 90, 68.6, 0.8, GOLD_ARC),
+        main: place(aura(pose("charge"), "#FFC43A") + rA(pose("charge")) + S.fade(glowEyes(0, 0), [[68.9, 0], [68.95, 1]]), RS, TOP) + crackle(face[0], face[1], 14, 20, 90, 68.6, 0.8, GOLD_ARC),
         screen: F.focusFlicker(W / 2, H / 2, 69.0, 0.4, { fill: "#FFF3B0", op: 0.35, inner: 260 })
     });
 }
@@ -125,10 +128,9 @@ shot(69.4, 70.6, {
     const fissure = S.fade(rect(700, GROUND + 2, 2000, 5, "#FFE45C") + rect(700, GROUND - 1, 2000, 11, "#FFC43A", ' opacity=".35"'), [[71.5, 0], [71.6, 1], [74, 0.6]]) + S.win(rect(700, GROUND + 3, 2000, 4, "#07090E"), [[74, D + 5]]);
     const rBody = S.win(rA(pose("run")), [[70.9, 71.5]]) + S.win(rA(pose("land")) + F.rgb(pose("land")), [[71.5, 71.62]]) + S.win(rA(pose("land")), [[71.62, 75]]);
     const tBody = tA(pose("alert"), TWIN2) + cracked(7) + S.fade(F.rays(90, 90, 0, 360, 16, 420, { grad: "pinkRay", width: [10, 30] }), [[71.5, 0], [71.6, 1], [74.5, 0.4]]);
-    shot(70.9, 75.0, {
-        far: farCut,
+    fseg(70.9, 75.0, {
         cam: [[70.9, ...cam0, 0, "linear"], [71.5, 1700, 640, 0.43, 0, "cubic-bezier(.3,0,.2,1)"], [75.0, 1700, 590, 0.26, 0]],
-        main: field(false) + place(rBody, RF, TOP) + place(tBody, TF, TOP) + pillarOfLight + fissure + wall
+        main: place(rBody, RF, TOP) + place(tBody, TF, TOP) + pillarOfLight + fissure + wall
             + ring(twinC[0], twinC[1], 71.5, { r: 1600, width: 14, heat: true, life: 0.9 }) + ring(twinC[0], GROUND, 71.55, { r: 2200, flat: 0.08, width: 8, life: 1.1 })
             + flare(twinC[0], twinC[1], 900, 71.5, 1, 0.8, "pinkFlare") + debris(twinC[0], GROUND - 8, 71.5, 16, { stay: true, vx: [-700, 700], vy: [300, 1000] })
             + Array.from({ length: 10 }, () => rock(R(800, 2600), GROUND - 10, 71.5 + R(0, 0.3), { vx: R(-200, 200), vy: -R(500, 1100), big: 1, stay: true })).join("") + S.win(plumes([[CX, 5], [twinC[0], 4]]), [[72.5, D + 5]]),
@@ -136,6 +138,8 @@ shot(69.4, 70.6, {
         quake: [[71.5, 1.4, 22], [72.9, 1.0, 8]]
     });
 }
+
+sequence({ far: farCut, common: field() }, fsegs);
 
 // ---- from straight above, the dust clearing: the scar the cut left in the
 // ground spells ICYCLE.
@@ -172,7 +176,7 @@ S.within(AFTER_OFF, () => {
         + flare(...RIFT_C, 300, 19.81, 0.9, 0.35, "pinkFlare") + F.burst(...RIFT_C, 19.81, { radius: 80, sparks: 16, color: "#DCC6FF", trail: "#A46BFF" });
     const ground = wreck() + ROCKS + bigCrater + rect(700, GROUND + 3, 2000, 4, "#07090E") + plumes([...FIELD_PLUMES, [CX, 4], [2040, 3]]);
     const main = riftEnd + ground
-        + place(S.win(rA(pose("land")), [[17.25, 17.9]]) + S.win(rLoop("idle"), [[17.9, 20.6]]), RF, TOP)
+        + place(foot() + S.win(rA(pose("land")), [[17.25, 17.9]]) + S.win(`<g class="breathe">${rLoop("idle")}</g>`, [[17.9, 20.6]]), RF, TOP) + F.motes(26, 1000, 2600, 500, GROUND)
         + S.win(place(tA(pose("alert"), TWIN2) + cracked(7), TF, TOP) + S.win(cr, [[18.0, 18.4]]), [[17.25, 18.4]]) + dust
         + crackle(...rAt(RF, TOP, MID), 10, 14, 70, 17.3, 1.0) + floating(20, 900, 2500, 600, GROUND);
     shot(17.25, 20.6, { far: farCut, cam: [[17.25, 1950, 780, 0.75, 4, "cubic-bezier(.2,.6,.3,1)"], [20.6, 1720, 690, 0.42, 0]], main });
@@ -183,7 +187,7 @@ S.within(AFTER_OFF, () => {
     shot(20.6, 87.5 - AFTER_OFF, {
         far: farCut + constellation(21.4, 25.6),
         cam: [[20.6, 1720, 690, 0.42, 0, "cubic-bezier(.4,0,.2,1)"], [22.0, 1800, 330, 0.55, 0], ...lift],
-        main: ground + place(rLoop("idle"), RF, TOP) + floating(14, 1400, 2600, 500, GROUND)
+        main: ground + place(foot() + `<g class="breathe">${rLoop("idle")}</g>`, RF, TOP) + floating(14, 1400, 2600, 500, GROUND) + F.motes(26, 1000, 2600, 400, GROUND)
     });
 });
 

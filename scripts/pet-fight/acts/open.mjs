@@ -8,7 +8,7 @@ import { S, R, rnd, rect, pix, place, poly, r1, use, shot, shots, defs, W, H, D,
 import * as F from "../fx.mjs";
 import { pose, rA, tA, rLoop, tLoop, actor, rAt, tAt, FACE, glowEyes, C0 } from "../cast.mjs";
 import { rift, riftOpening, riftGlow, RIFT_C, pillar, LPX, RPX, moonArt } from "../sets.mjs";
-import { R0, T0 } from "./clash.mjs";
+import { R0, T0, foot, sq } from "./clash.mjs";
 
 // Wind: streaks blowing through, on their own clocks.
 export const wind = (n, x0, x1, y0, y1, { dx = [300, 520], op = 0.6 } = {}) => Array.from({ length: n }, (_, i) => {
@@ -54,8 +54,8 @@ export const RIFT_ON_PAGE = pageAt(RIFT_C);
         + S.fade(riftGlow, [[2.3, 0], [2.6, 1]]) + riftOpening(2.3) + F.flare(cx, cy, 500, 2.3, 1, 0.5, "pinkFlare")
         + S.fade(glowEyes(cx - 90, cy - 120, "#FF4FD8", "#FFE6F8", { flip: true }), [[2.5, 0], [2.55, 1], [2.85, 1], [2.9, 0]])
         + F.ring(cx, cy, 2.7, { r: 900, width: 8, color: "#DCC6FF", life: 0.7, heat: true })
-        + actor(twin, tPts) + F.dustRing(T0 + 90, 4.85, 10, 140) + F.crater(T0 + 90, 4.85, 0.6, { glow: "#FF4FD8", cracks: false })
-        + place(S.win(rLoop("idle"), [[0, 1.25]]) + S.win(rA(pose("alert")), [[1.25, 3.0]]) + S.win(rA(pose("land")), [[3.0, 5.0]]), R0, TOP)
+        + S.win(F.shadowOf(tPts), [[2.9, 5.0]]) + actor(sq(twin, [[3.75, 0.82, 1.2], [4.85, 1.3, 0.72]]), tPts) + F.dustRing(T0 + 90, 4.85, 10, 140) + F.crater(T0 + 90, 4.85, 0.6, { glow: "#FF4FD8", cracks: false })
+        + place(foot() + S.win(`<g class="breathe">${rLoop("idle")}</g>`, [[0, 1.25]]) + S.win(S.squash(rA(pose("alert")), 1.25, { sx: 0.9, sy: 1.12, dur: 0.25 }), [[1.25, 3.0]]) + S.win(S.squash(rA(pose("land")), 3.0), [[3.0, 5.0]]), R0, TOP)
         + S.win(wind(30, 200, 3200, 500, GROUND), [[3.0, 5.0]])
         + F.glint(...rAt(R0, TOP, [Art.X0 + 7.5, Art.TOP + 6.5]), 1.3, "#FFFFFF", 8);
     shot(0, 5.0, { cam, far: "", mid: "", ground: use("rule"), main, screen: F.glitchWord("ICYCLE", RIFT_ON_PAGE[0] - 58, RIFT_ON_PAGE[1] - 14, 4, 1.7, 2.3) + F.flash(2.7, 1, "#FFFFFF", 0.6) });
@@ -68,7 +68,7 @@ export const RIFT_ON_PAGE = pageAt(RIFT_C);
     const both = rift() + pillar(LPX) + pillar(RPX);
     shot(5.0, 7.4, {
         cam: [[5.0, 1560, 620, 0.335, -1, "ease-in-out"], [7.4, 1600, 630, 0.36, 0]],
-        main: both + place(rA(pose("land")), R0, TOP) + place(tLoop("annoyed"), T0, TOP) + wind(40, 200, 3200, 600, GROUND) + F.rays(2050, 330, 115, 150, 5, 900),
+        main: both + place(foot() + `<g class="breathe">${rA(pose("land"))}</g>`, R0, TOP) + place(foot() + `<g class="breathe">${tLoop("annoyed")}</g>`, T0, TOP) + F.motes(30, 300, 2900, 450, GROUND) + wind(40, 200, 3200, 600, GROUND) + F.rays(2050, 330, 115, 150, 5, 900),
         screen: ""
     });
     // Worm's-eye: Rascal huge against the sky, the moon behind its head.
@@ -76,14 +76,14 @@ export const RIFT_ON_PAGE = pageAt(RIFT_C);
     shot(7.4, 8.6, {
         cam: [[7.4, R0 + 90, 770, 2.05, -10, "ease-out"], [8.6, R0 + 90, 755, 2.3, -12]],
         bg: S.move(moonBg(560, 190), [[7.4, 0, 0, 0, 1], [8.6, -20, 10, 0, 1.04]], { origin: [560, 190] }),
-        main: place(S.win(rA(pose("land")), [[7.4, 8.0]]) + S.win(rA(pose("alert")), [[8.0, 8.6]]), R0, TOP) + wind(16, R0 - 300, R0 + 500, TOP - 100, GROUND, { op: 0.8 })
+        main: place(foot() + S.win(`<g class="breathe">${rA(pose("land"))}</g>`, [[7.4, 8.0]]) + S.win(S.squash(rA(pose("alert")), 8.0, { sx: 0.92, sy: 1.1, dur: 0.25 }), [[8.0, 8.6]]), R0, TOP) + F.motes(14, R0 - 300, R0 + 500, TOP - 150, GROUND) + wind(16, R0 - 300, R0 + 500, TOP - 100, GROUND, { op: 0.8 })
             + F.glint(...rAt(R0, TOP, [Art.X0 + 7.5, Art.TOP + 6.5]), 8.05, "#FFE45C", 6) + F.spiderweb(R0 + 90, GROUND + 3, 140, 7.5, { glow: "#FFC43A", dur: 0.6 })
     });
     // ...and the twin, the rift glowing behind it.
     shot(8.6, 9.8, {
         cam: [[8.6, T0 + 90, 770, 2.05, 10, "ease-out"], [9.8, T0 + 90, 755, 2.3, 12]],
         bg: `<circle cx="300" cy="250" r="420" fill="url(#riftGlow)"/>`,
-        main: place(tLoop("annoyed"), T0, TOP) + wind(16, T0 - 500, T0 + 300, TOP - 100, GROUND, { op: 0.8 })
+        main: place(foot() + `<g class="breathe">${tLoop("annoyed")}</g>`, T0, TOP) + F.motes(14, T0 - 500, T0 + 300, TOP - 150, GROUND) + wind(16, T0 - 500, T0 + 300, TOP - 100, GROUND, { op: 0.8 })
             + F.glint(...tAt(T0, TOP, [Art.X0 + 7.5, Art.TOP + 6.5]).map((v, i) => v + (i ? -4 : -8)), 9.2, "#FFD6F5", 6) + F.heat(T0 + 20, T0 + 160, TOP + 40, 8, "#FFD6F5")
     });
     // Their eyes: two strips, one above the other, the page between them.
@@ -96,8 +96,8 @@ export const RIFT_ON_PAGE = pageAt(RIFT_C);
     const band = (c, y, html, dir) => `<g clip-path="url(#${c})">${S.move(html, [[9.8, 0, 0, 0, 1], [11.4, dir * 40, 0, 0, 1.08]], { origin: [W / 2, y + bandH / 2] })}${wind(10, 70, W - 70, y, y + bandH, { op: 0.5 })}</g>`
         + rect(70, y - 3, W - 140, 3, ".g1") + rect(70, y + bandH, W - 140, 3, ".g1");
     const eyeAt = (x, y) => [x, y];
-    shots.push(S.win(S.move(band(c1, top[0], rFace, 1), [[9.8, -W, 0, 0, 1, "cubic-bezier(.2,.9,.3,1)"], [10.0, 0, 0]], { on: 24 })
-        + S.move(band(c2, top[1], tFace, -1), [[9.8, W, 0, 0, 1, "cubic-bezier(.2,.9,.3,1)"], [10.05, 0, 0]], { on: 24 })
+    shots.push(S.win(S.move(band(c1, top[0], rFace, 1), [[9.8, -W, 0, 0, 1, "cubic-bezier(.2,.9,.3,1)"], [10.0, 0, 0]], {})
+        + S.move(band(c2, top[1], tFace, -1), [[9.8, W, 0, 0, 1, "cubic-bezier(.2,.9,.3,1)"], [10.05, 0, 0]], {})
         + F.glint(W / 2 - 60 + 10, top[0] + bandH / 2 - 10, 10.6, "#FFE45C", 10) + F.glint(W / 2 + 60 - 10, top[1] + bandH / 2 - 10, 10.8, "#FF86C8", 10), [[9.8, 11.4]]));
     // The pillar: ICYCLE carved down it. A chip comes off the top and falls.
     shot(11.4, 12.6, {
@@ -109,6 +109,6 @@ export const RIFT_ON_PAGE = pageAt(RIFT_C);
     // Silence.
     shot(12.6, 13.8, {
         cam: [[12.6, 1600, 650, 0.34, 0, "ease-in"], [13.8, 1600, 660, 0.38, 0]],
-        main: both + place(rA(pose("land")), R0, TOP) + place(tA(pose("land")), T0, TOP)
+        main: both + place(foot() + `<g class="breathe">${rA(pose("land"))}</g>`, R0, TOP) + place(foot() + `<g class="breathe">${tA(pose("land"))}</g>`, T0, TOP) + F.motes(20, 300, 2900, 450, GROUND)
     });
 }

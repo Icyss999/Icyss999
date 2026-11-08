@@ -7,12 +7,12 @@
 // slash -- a hairline, a beat of nothing, then a tower and the sign slide
 // apart; the city from above; the counter-strike; the whole city, smoking.
 
-import { S, R, rnd, rect, pix, place, poly, r1, use, shot, shots, defs, W, H, D, GROUND, TOP, PX, fx, K, Art, PAL, TWIN, TWIN2, CYAN, PINK, GOLD, SMOKE, INK, PAPER, mono, word, wordW } from "../core.mjs";
+import { S, R, rnd, rect, pix, place, poly, r1, use, shot, shots, defs, sequence, W, H, D, GROUND, TOP, PX, fx, K, Art, PAL, TWIN, TWIN2, CYAN, PINK, GOLD, SMOKE, INK, PAPER, mono, word, wordW } from "../core.mjs";
 import * as F from "../fx.mjs";
 import { pose, rA, tA, rB, tB, rLoop, tLoop, actor, ghosts, rAt, tAt, paw, grip, FACE, MID, sil, glowEyes, cracked, lying, C0 } from "../cast.mjs";
-import { rift, pillar, toppled, LPX, RPX, rubble, CITY, SIGN, BRIDGE, signFrame, signLetters, neonWord, tower, moonArt } from "../sets.mjs";
+import { rift, pillar, toppled, LPX, RPX, rubble, CITY, SIGN, BRIDGE, signFrame, signLetters, neonWord, tower, moonArt, wires } from "../sets.mjs";
 import { wind, floating } from "./open.mjs";
-import { signature } from "./clash.mjs";
+import { signature, sq, foot } from "./clash.mjs";
 
 const { hit, ring, dustRing, debris, scorch, embers, crackle, puff, flare, streaks, trail, kicks, bolt, boltOnce, explosion, effect, aura, glint, rock, GOLD_ARC, PINK_ARC, PINK_LINES } = F;
 const RF = 2150, TF = 1950;
@@ -50,7 +50,7 @@ export const FIELD_PLUMES = [[1600, 4], [1780, 6], [2125, 3], [1975, 3], [LPX + 
     const upBody = darkAura + S.win(tA(pose("fall"), TWIN2), [[29.5, 29.95]]) + S.win(tA(pose("land"), TWIN2) + cracked(5), [[29.95, 30.7]]) + S.win(F.rgb(pose("land"), { flip: true, d: 9 }), [[30.45, 30.55]]);
     shot(29.5, 30.7, {
         cam: [[29.5, 2030, 815, 1.25, -6, "ease-in"], [30.1, 2028, 808, 1.4, -7, "cubic-bezier(.75,0,.25,1)"], [30.45, 2025, 803, 3.6, -11], [30.7, 2025, 803, 3.8, -11]],
-        main: field + actor(upBody, twinUp) + F.spiderweb(TF + 90, GROUND + 3, 300, 29.9, { glow: "#FF4FD8", n: 11 }) + crackle(TF + 90, TOP + 90, 14, 20, 110, 29.9, 0.8, PINK_ARC)
+        main: field + actor(sq(upBody, [[29.95, 1.18, 0.84]]), twinUp) + F.spiderweb(TF + 90, GROUND + 3, 300, 29.9, { glow: "#FF4FD8", n: 11 }) + crackle(TF + 90, TOP + 90, 14, 20, 110, 29.9, 0.8, PINK_ARC)
             + F.heat(TF + 10, TF + 170, TOP + 40, 10, "#FFB0F0") + S.fade(glowEyes(TF, TOP, "#FF4FD8", "#FFE6F8", { flip: true }), [[30.2, 0], [30.25, 1]]) + ring(TF + 90, TOP + 90, 29.95, { r: 260, color: "#FF4FD8", width: 6, heat: true }),
         screen: F.focusFlicker(W / 2, H / 2, 30.45, 0.25, { fill: "#FFE6F8", op: 0.45, inner: 220 }),
         quake: [[29.95, 0.4, 6]]
@@ -72,7 +72,7 @@ export const FIELD_PLUMES = [[1600, 4], [1780, 6], [2125, 3], [1975, 3], [LPX + 
     const fly = [[31.1, RF + 40, TOP - 20, 0], [31.35, 2420, 560, 200, 1, "cubic-bezier(.2,.7,.4,1)"], [31.9, 2900, 330, 720, 0.75, "linear"], [32.6, 3500, 150, 1260, 0.35, "ease-out"], [33.0, 3700, 100, 1440, 0.25]];
     shot(31.1, 33.0, {
         cam: [[31.1, 2200, 790, 1.05, 0, "cubic-bezier(.3,0,.2,1)"], [31.5, 2560, 640, 0.75, -8, "ease-out"], [32.2, 2950, 520, 0.56, -4, "ease-in-out"], [33.0, 3050, 500, 0.5, 0]],
-        main: field + actor(rA(pose("fall")), fly) + ghosts(rA(pose("fall"), mono("#5CCFFF")), fly, [31.1, 31.9], 4, 0.03)
+        main: field + actor(S.squash(rA(pose("fall")), 31.1, { sx: 0.7, sy: 1.3, dur: 0.4 }), fly) + ghosts(rA(pose("fall"), mono("#5CCFFF")), fly, [31.1, 31.9], 4, 0.03)
             + trail(fly, 31.1, 32.4, ["#FFFFFF", "#8FE0FF", "#5CCFFF"], { every: 0.035 })
             + place(S.win(tB(pose("cast"), TWIN2) + cracked(5), [[31.1, 31.6]]) + S.win(tB(pose("land"), TWIN2) + cracked(5), [[31.6, 33.0]]), 1990, TOP)
             + hit(RF + 40, TOP + 80, 31.1, { size: 2, pink: true }) + ring(RF + 60, GROUND, 31.1, { r: 400, flat: 0.12, width: 5 }) + dustRing(RF + 60, 31.12, 12, 260)
@@ -86,6 +86,9 @@ export const FIELD_PLUMES = [[1600, 4], [1780, 6], [2125, 3], [1975, 3], [LPX + 
 const L2line = (x) => 340 + (2080 - x) * 0.3;          // the slash: y at x
 const CUT = [2400, L2line(2400), 500, L2line(500)];
 const cityWorld = { far: use("cityFar"), mid: use("cityMid"), ground: use("street") };
+// The city's shots, cut together over one city.
+const segs = [];
+const seg = (t0, t1, s) => segs.push({ t0, t1, ...s });
 // What gets cut, cut: the glass tower's top slides off along the line; so
 // does the top of the sign. (Made once, reused in every shot.)
 const signDark = `<g opacity=".9">${neonWord("ICYCLE", SIGN.x, SIGN.y, SIGN.k, "#3A2340")}</g>`;
@@ -94,7 +97,7 @@ const L2cut = F.split(use("L2"), CUT, 42.2, { dx: -300, dy: 120, r: -9, dur: 2.2
 const SIGNcut = F.split(signAll, CUT, 42.2, { dx: -200, dy: 150, r: -14, dur: 1.6, origin: [1660, L2line(1660)] });
 const BRIDGE_BROKEN = rect(BRIDGE.x, BRIDGE.y + BRIDGE.h - 6, BRIDGE.w, 6, ".b4") + rect(BRIDGE.x, BRIDGE.y, 60, 6, ".b4") + rect(BRIDGE.x + BRIDGE.w - 90, BRIDGE.y, 90, 6, ".b4")
     + rect(BRIDGE.x, BRIDGE.y, 4, BRIDGE.h, ".b4") + rect(BRIDGE.x + BRIDGE.w - 4, BRIDGE.y, 4, BRIDGE.h, ".b4");
-const city = use("L1") + L2cut + S.win(use("bridge"), [[-S.off, 33.4]]) + S.win(BRIDGE_BROKEN, [[33.4, D + 5]]) + use("R1") + SIGNcut + use("R2") + use("R3");
+const city = wires() + use("L1") + L2cut + S.win(use("bridge"), [[-S.off, 33.4]]) + S.win(BRIDGE_BROKEN, [[33.4, D + 5]]) + use("R1") + SIGNcut + use("R2") + use("R3");
 // Smoke going up from the wreck, once there's wreck.
 const cityPlumes = (t) => S.win(plumes([[1740, 4], [1000, 3]]), [[t, D + 5]]);
 
@@ -117,17 +120,19 @@ const tPts = [
     const tBody = S.win(tA(pose("jump"), TWIN2), [[33.0, 35.45], [36.8, 37.15]]) + S.win(tA(pose("land"), TWIN2), [[35.45, 35.7], [37.6, 37.8]]) + S.win(tLoop("annoyed", {}, TWIN2), [[35.7, 36.8], [37.8, 40.5], [42.2, 46.5]])
         + S.win(tA(pose("cast"), TWIN2), [[37.15, 37.6], [41.3, 42.2]]) + S.win(tLoop("charge", {}, TWIN2), [[40.5, 41.3]]) + S.win(tA(pose("alert"), TWIN2), [[46.5, 47.35]]) + S.win(tA(pose("fall"), TWIN2), [[47.35, 50]])
         + S.win(cracked(5), [[33, 50]]);
-    const both = actor(tBody, tPts) + actor(rBody, rPts);
+    const rFlash = S.win(F.hitFlash(pose("jump")), [[37.15, 37.19]]) + S.win(F.hitFlash(pose("fall")), [[39.1, 39.14], [33.4, 33.44]]);
+    const tFlash = S.win(F.hitFlash(pose("jump"), true), [[37.15, 37.19]]) + S.win(F.hitFlash(pose("fall"), true), [[47.35, 47.4]]);
+    const both = actor(sq(tBody + tFlash, [[35.45, 1.3, 0.72], [36.8, 0.82, 1.2], [37.6], [47.35, 0.8, 1.2]]), tPts)
+        + actor(sq(rBody + rFlash, [[34.72, 1.3, 0.72], [36.8, 0.82, 1.2], [39.6, 1.35, 0.68], [41.2, 0.8, 1.25], [42.45]]), rPts);
 
     // ---- through the glass (33-35.2): it hits the skybridge, and time all
     // but stops; shards hang round it (some with a letter on them); then it
     // all goes at once, and it lands on the roof.
     const glassAt = [1270, 520];
-    shot(33.0, 35.2, {
-        ...cityWorld,
+    seg(33.0, 35.2, {
         cam: [[33.0, 1000, 420, 0.75, -6, "linear"], [33.4, 1240, 500, 1.15, 4, "cubic-bezier(.1,.8,.3,1)"], [33.6, 1250, 505, 1.3, 7, "linear"], [34.6, 1265, 512, 1.42, 11, "cubic-bezier(.7,0,.3,1)"],
             [34.75, 1520, 500, 0.95, -4, "ease-out"], [35.2, 1620, 480, 0.85, -2]],
-        main: city + both + ghosts(rA(pose("fall"), mono("#5CCFFF")), rPts, [33.0, 33.4], 4, 0.03) + ghosts(rA(pose("fall"), mono("#5CCFFF")), rPts, [34.6, 34.72], 3, 0.02)
+        main: ghosts(rA(pose("fall"), mono("#5CCFFF")), rPts, [33.0, 33.4], 4, 0.03) + ghosts(rA(pose("fall"), mono("#5CCFFF")), rPts, [34.6, 34.72], 3, 0.02)
             + F.shards(...glassAt, 34.0 - 0.6, 46, { spread: 520, dir: 0.6, letters: "ICYCLE", phases: [[0, 0], [0.12, 0.3], [1.2, 0.42], [1.35, 1]], size: [12, 30] })
             + flare(...glassAt, 260, 33.4, 1, 0.4) + F.ring(...glassAt, 33.4, { r: 300, width: 5, heat: true })
             + F.spiderweb(1720, CITY.R1[2] + 2, 260, 34.72) + dustRing(1720, 34.72, 10, 200, CITY.R1[2] - 10) + debris(1720, CITY.R1[2] - 8, 34.72, 6, { stay: true, floor: CITY.R1[2] })
@@ -137,18 +142,16 @@ const tPts = [
     });
     // ---- the twin lands on the next roof; the sign comes on, a letter at a
     // time.
-    shot(35.2, 36.8, {
-        ...cityWorld,
+    seg(35.2, 36.8, {
         cam: [[35.2, 1960, 430, 1.15, 6, "ease-out"], [36.8, 1950, 420, 1.25, 8]],
-        main: city + both + dustRing(2170, 35.45, 10, 200, CITY.R2[2] - 10) + F.spiderweb(2170, CITY.R2[2] + 2, 220, 35.45, { glow: "#FF4FD8" }) + ring(2170, CITY.R2[2], 35.45, { r: 280, flat: 0.12, width: 4 })
+        main: dustRing(2170, 35.45, 10, 200, CITY.R2[2] - 10) + F.spiderweb(2170, CITY.R2[2] + 2, 220, 35.45, { glow: "#FF4FD8" }) + ring(2170, CITY.R2[2], 35.45, { r: 280, flat: 0.12, width: 4 })
             + streaks(2170, -200, 2170, 300, 35.25, 10, { colors: PINK_LINES, len: [160, 320] }) + [..."ICYCLE"].map((_, i) => flare(SIGN.x + i * 48 + 20, SIGN.y + 28, 70, 35.6 + i * 0.1, 0.9, 0.25, "pinkFlare")).join(""),
         quake: [[35.45, 0.25, 9]]
     });
     // ---- a clash over the street.
-    shot(36.8, 37.4, {
-        ...cityWorld,
+    seg(36.8, 37.4, {
         cam: [[36.8, 1880, 440, 0.82, 0, "ease-in"], [37.12, 1905, 330, 1.05, -5, "ease-out"], [37.15, 1905, 320, 1.25, -6, "linear"], [37.35, 1905, 318, 1.3, -7, "ease-in"], [37.4, 1905, 330, 1.1, -4]],
-        main: city + both + ghosts(rA(pose("jump"), mono("#5CCFFF")), rPts, [36.85, 37.15], 3, 0.03) + ghosts(tA(pose("jump"), mono("#FF4FD8")), tPts, [36.85, 37.15], 3, 0.03)
+        main: ghosts(rA(pose("jump"), mono("#5CCFFF")), rPts, [36.85, 37.15], 3, 0.03) + ghosts(tA(pose("jump"), mono("#FF4FD8")), tPts, [36.85, 37.15], 3, 0.03)
             + hit(1985, 320, 37.15, { size: 2 }) + hit(1985, 320, 37.17, { size: 1.4, pink: true }),
         screen: F.flash(37.15, 2, "#FFFFFF", 0.85) + F.focusFlicker(W / 2, H / 2, 37.15, 0.2, { op: 0.6 }),
         quake: [[37.15, 0.25, 14]]
@@ -196,22 +199,22 @@ const tPts = [
         let figs = "";
         for (const [a, b, rr, tt] of beats) figs += S.win(on(rr[1], pose(rr[0]), false, PAL, rr[2]) + on(tt[1], pose(tt[0]), true, TWIN2, tt[2]) + (tt[0] === "cast" ? "" : ""), [[a, b]]);
         const hits = [[38.35, false, 1.2], [38.6, true, 1.2], [38.85, false, 1.4], [39.1, true, 2.2]].map(([t, pink, s]) => hit(480, 300, t, { size: s, pink }) + F.flash(t, 1, "#FFFFFF", 0.5)).join("");
-        const roll = S.move(`<g>${sky}${back}${roof}${figs}${hits}</g>`, [[38.2, 0, 0, -3, 1], [38.35, 0, 0, 6, 1.06], [38.6, 0, 0, -8, 1.08], [38.85, 0, 0, 10, 1.1], [39.1, 0, 0, -14, 1.16], [39.4, 0, 0, -16, 1.2]], { origin: [480, 360], on: 1 });
+        const snap = "cubic-bezier(.15,.85,.3,1)";
+        const roll = S.move(`<g>${sky}${back}${roof}${figs}${hits}</g>`, [[38.2, 0, 0, -3, 1, "ease-in"], [38.35, 0, 0, -4, 1.02, snap], [38.43, 0, 0, 6, 1.06, "ease-in"], [38.6, 0, 0, 5, 1.06, snap], [38.68, 0, 0, -8, 1.08, "ease-in"],
+            [38.85, 0, 0, -7, 1.08, snap], [38.93, 0, 0, 10, 1.1, "ease-in"], [39.1, 0, 0, 9, 1.1, snap], [39.2, 0, 0, -14, 1.16, "ease-out"], [39.4, 0, 0, -16, 1.2]], { origin: [480, 360] });
         shots.push(S.win(S.quake(roll, [[38.35, 0.12, 8], [38.6, 0.12, 8], [38.85, 0.12, 10], [39.1, 0.3, 18]]) + F.focusFlicker(480, 300, 39.1, 0.18, { op: 0.6 }), [[38.2, 39.4]]));
     }
     // ---- down into the road.
-    shot(39.4, 40.5, {
-        ...cityWorld,
+    seg(39.4, 40.5, {
         cam: [[39.4, 1720, 600, 0.62, -5, "ease-out"], [40.5, 1720, 640, 0.58, -1]],
-        main: city + both + F.crater(1740, 39.6, 1.1) + ghosts(rA(pose("fall"), mono("#5CCFFF")), rPts, [39.4, 39.6], 3, 0.03) + cityPlumes(39.7),
+        main: F.crater(1740, 39.6, 1.1) + ghosts(rA(pose("fall"), mono("#5CCFFF")), rPts, [39.4, 39.6], 3, 0.03) + cityPlumes(39.7),
         screen: F.flash(39.6, 1, "#FFFFFF", 0.6),
         quake: [[39.6, 0.35, 14]]
     });
     // ---- the slash. The twin draws the light in; held.
-    shot(40.5, 41.3, {
-        ...cityWorld,
+    seg(40.5, 41.3, {
         cam: [[40.5, 2150, 345, 1.8, 6, "ease-in"], [41.3, 2150, 340, 2.15, 8]],
-        main: city + both + S.fade(aura(pose("charge"), "#FF4FD8", { flip: true }), [[40.5, 0], [41.2, 1]]) + crackle(2170, 340, 16, 20, 110, 40.5, 0.8, PINK_ARC)
+        main: S.fade(aura(pose("charge"), "#FF4FD8", { flip: true }), [[40.5, 0], [41.2, 1]]) + crackle(2170, 340, 16, 20, 110, 40.5, 0.8, PINK_ARC)
             + F.rays(2080, 340, 150, 210, 7, 500, { grad: "pinkRay" }) + F.heat(2090, 2250, 300, 10, "#FFB0F0") + F.castShadow(pose("charge"), 2080, { flip: true, ground: CITY.R2[2], lean: -0.8 })
     });
     // A hairline across the whole city. Rascal leaps it. Nothing happens --
@@ -222,10 +225,9 @@ const tPts = [
         + F.shards(980, L2line(980), 42.25, 26, { spread: 380, dir: -1, phases: [[0, 0], [0.1, 0.25], [1.0, 0.4], [1.4, 1]] })
         + Array.from({ length: 14 }, () => { const x = R(830, 1110); return rock(x, L2line(x), 42.3 + R(0, 1.2), { vx: R(-120, 60), vy: R(-50, 50), stay: true, bit: rnd() < 0.5 }); }).join("")
         + S.win(dustRing(900, 44.3, 14, 360), [[44.3, D]]) + cityPlumes(43.5);
-    shot(41.3, 44.5, {
-        ...cityWorld,
+    seg(41.3, 44.5, {
         cam: [[41.3, 1500, 545, 0.55, 0, "linear"], [42.2, 1490, 550, 0.57, 0, "cubic-bezier(.4,0,.2,1)"], [44.5, 1420, 520, 0.41, -2]],
-        main: city + both + slashFx + cutDust + ghosts(rA(pose("jump"), mono("#5CCFFF")), rPts, [41.2, 41.4], 3, 0.03),
+        main: slashFx + cutDust + ghosts(rA(pose("jump"), mono("#5CCFFF")), rPts, [41.2, 41.4], 3, 0.03),
         screen: F.flash(41.3, 1, "#FFE6F8", 0.7),
         quake: [[42.2, 1.2, 8], [44.3, 0.5, 12]]
     });
@@ -239,26 +241,24 @@ const tPts = [
         shot(44.5, 46.5, { cam: [[44.5, 1600, 680, 0.62, 0, "linear"], [46.5, 1600, 680, 0.7, 22]], far: "", mid: "", ground: use("cityPlan"), main: hole + fallen + dust + specks });
     }
     // ---- Rascal's answer: held, then lightning across to the twin's roof.
-    shot(46.5, 47.3, {
-        ...cityWorld,
+    seg(46.5, 47.3, {
         cam: [[46.5, 1700, 470, 1.65, -6, "ease-in"], [47.3, 1700, 465, 1.9, -8]],
-        main: city + both + S.fade(aura(pose("cast"), "#FFC43A"), [[46.5, 0], [47.2, 1]]) + crackle(1730, 470, 14, 20, 100, 46.5, 0.8, GOLD_ARC) + embers(1690, CITY.R1[2], 46.6, 12, 60, 0.7)
+        main: S.fade(aura(pose("cast"), "#FFC43A"), [[46.5, 0], [47.2, 1]]) + crackle(1730, 470, 14, 20, 100, 46.5, 0.8, GOLD_ARC) + embers(1690, CITY.R1[2], 46.6, 12, 60, 0.7)
             + F.heat(1600, 1780, 400, 10) + F.rays(...rAt(1600, ROOF1, paw("cast")), -40, 40, 6, 420, { grad: "goldRay" })
     });
     const from = rAt(1600, ROOF1, paw("cast")), target = tAt(2080, ROOF2, MID);
-    shot(47.3, 48.2, {
-        ...cityWorld,
+    seg(47.3, 48.2, {
         cam: [[47.3, 1880, 420, 0.95, 0, "ease-out"], [48.2, 1920, 440, 0.82, 3]],
-        main: city + both + S.win(effect("flash", ...from), [[47.3, 47.5]]) + bolt(from, target, 47.3, { hold: 0.45 }) + explosion(target[0], target[1], 47.35, 1.3, { ground: CITY.R2[2] })
+        main: S.win(effect("flash", ...from), [[47.3, 47.5]]) + bolt(from, target, 47.3, { hold: 0.45 }) + explosion(target[0], target[1], 47.35, 1.3, { ground: CITY.R2[2] })
             + F.castShadow(pose("cast"), 1600, { ground: CITY.R1[2], lean: 1.4 }) + trail(tPts, 47.35, 48.2, PINK_LINES),
         screen: F.flash(47.35, 2),
         quake: [[47.35, 0.5, 14]]
     });
     // ---- the whole city, smoking, the moon over it.
-    shot(48.2, 50.0, {
-        ...cityWorld,
+    seg(48.2, 50.0, {
         cam: [[48.2, 1600, 600, 0.52, 0, "cubic-bezier(.3,0,.2,1)"], [50.0, 1600, 560, 0.34, 0]],
-        main: city + both + S.win(plumes([[2170, 4]]), [[47.4, D + 5]]) + F.rays(2050, 330, 110, 140, 4, 1200) + floating(16, 800, 2600, 300, GROUND),
+        main: S.win(plumes([[2170, 4]]), [[47.4, D + 5]]) + F.rays(2050, 330, 110, 140, 4, 1200) + floating(16, 800, 2600, 300, GROUND),
         quake: [[48.4, 0.25, 6]]
     });
+    sequence({ ...cityWorld, common: city + both }, segs);
 }

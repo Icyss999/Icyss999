@@ -16,17 +16,17 @@ const { hit, ring, dustRing, debris, embers, crackle, puff, flare, streaks, trai
 // ---------------------------------------------------------------- eyecatch
 {
     const t0 = 50.0, t1 = 52.8;
-    const band = (pts, fill, op, from) => S.move(poly(pts, fill, ` opacity="${op}"`), [[t0, from, 0, 0, 1, "cubic-bezier(.2,.9,.3,1)"], [t0 + 0.25, 0, 0], [t1 - 0.2, 0, 0, 0, 1, "ease-in"], [t1, -from, 0]], { on: 24 });
+    const band = (pts, fill, op, from) => S.move(poly(pts, fill, ` opacity="${op}"`), [[t0, from, 0, 0, 1, "cubic-bezier(.2,.9,.3,1)"], [t0 + 0.25, 0, 0], [t1 - 0.2, 0, 0, 0, 1, "ease-in"], [t1, -from, 0]], {});
     const burst = `<g transform="translate(300 430)"><g class="orb" style="animation-duration:12s">${F.focus(0, 0, 28, 60, "#FFE45C").replace(/fill="#FFE45C"/g, 'fill="#FFE45C" opacity=".35"')}</g></g>`;
     const title = word("ICYCLE"), k = 14, tx = W / 2 - (title[0].length * k) / 2 + 60, ty = 110;
     const letters = [..."ICYCLE"].map((ch, i) => {
         const rows = word(ch), x = tx + i * 6 * k;
         const art = pix(rows, k, x - k * 0.8, ty, { pal: { c: "#FF2A5A" } }) + pix(rows, k, x + k * 0.8, ty + k * 0.4, { pal: { c: "#29E6FF" } }) + pix(rows, k, x, ty, { pal: { c: ".ink" } });
-        return S.win(S.move(art, [[t0 + 0.3 + i * 0.07, 0, -60, 0, 1.3, "cubic-bezier(.2,1.6,.4,1)"], [t0 + 0.45 + i * 0.07, 0, 0, 0, 1]], { origin: [x + 2.5 * k, ty + 3.5 * k], on: 24 }), [[t0 + 0.3 + i * 0.07, t1 - 0.2]]);
+        return S.win(S.move(art, [[t0 + 0.3 + i * 0.07, 0, -60, 0, 1.3, "cubic-bezier(.2,1.6,.4,1)"], [t0 + 0.45 + i * 0.07, 0, 0, 0, 1]], { origin: [x + 2.5 * k, ty + 3.5 * k] }), [[t0 + 0.3 + i * 0.07, t1 - 0.2]]);
     }).join("");
     const sparkles = Array.from({ length: 10 }, (_, i) => S.win(`<g class="twk" style="animation-duration:.8s;animation-delay:-${r1(R(0, 0.8))}s">${effect("sparkle", R(120, 860), R(80, 640), { h: "#FFFFFF", y: "#FFE45C" }, 6)}</g>`, [[t0 + 0.3, t1 - 0.2]])).join("");
-    const pet = S.win(S.move(pix(pose("jump"), 18, 160, 300), [[t0 + 0.15, -500, 0, -10, 1, "cubic-bezier(.2,.9,.3,1)"], [t0 + 0.4, 0, 0, -6], [t1 - 0.2, 0, -10, -4, 1, "ease-in"], [t1, -700, 0, -4]], { origin: [320, 460], on: 24 }), [[t0 + 0.15, t1]]);
-    const twin = S.win(S.move(pix(pose("annoyed"), 12, 650, 330, { flip: true, pal: mono("#12081F", { e: "#FF4FD8" }) }), [[t0 + 0.2, 500, 0, 0, 1, "cubic-bezier(.2,.9,.3,1)"], [t0 + 0.45, 0, 0], [t1 - 0.2, 0, 0, 0, 1, "ease-in"], [t1, 700, 0]], { on: 24 }), [[t0 + 0.2, t1]]);
+    const pet = S.win(S.move(pix(pose("jump"), 18, 160, 300), [[t0 + 0.15, -500, 0, -10, 1, "cubic-bezier(.2,.9,.3,1)"], [t0 + 0.4, 0, 0, -6], [t1 - 0.2, 0, -10, -4, 1, "ease-in"], [t1, -700, 0, -4]], { origin: [320, 460] }), [[t0 + 0.15, t1]]);
+    const twin = S.win(S.move(pix(pose("annoyed"), 12, 650, 330, { flip: true, pal: mono("#12081F", { e: "#FF4FD8" }) }), [[t0 + 0.2, 500, 0, 0, 1, "cubic-bezier(.2,.9,.3,1)"], [t0 + 0.45, 0, 0], [t1 - 0.2, 0, 0, 0, 1, "ease-in"], [t1, 700, 0]], {}), [[t0 + 0.2, t1]]);
     const html = band([[-100, 720], [380, 720], [1060, 120], [580, 120]], "#5CCFFF", 0.16, -1200) + band([[260, 720], [460, 720], [1140, 120], [940, 120]], "#FF4FD8", 0.16, 1200)
         + S.win(burst, [[t0 + 0.2, t1 - 0.2]]) + twin + pet + letters + sparkles + rect(120, 640, 720, 3, ".g1");
     shots.push(S.win(html, [[t0, t1]]));
@@ -50,7 +50,7 @@ const ROOF1 = CITY.R1[2] - Art.H * PX;
     shot(53.6, 54.3, {
         ...cityWorld,
         cam: [[53.6, 1700, 470, 1.1, 0, "ease-in"], [54.3, 1700, 300, 0.9, -6]],
-        main: use("R1") + use("R2") + actor(S.win(rA(pose("land", 0, ARMOR)), [[53.6, 53.75]]) + S.win(rLoop("fly", ARMOR) + jets(), [[53.75, 54.3]]), up)
+        main: use("R1") + use("R2") + actor(S.squash(S.squash(S.win(rA(pose("land", 0, ARMOR)), [[53.6, 53.75]]) + S.win(rLoop("fly", ARMOR) + jets(), [[53.75, 54.3]]), 53.6, { sx: 1.2, sy: 0.8, dur: 0.15 }), 53.75, { sx: 0.75, sy: 1.3, dur: 0.4 }), up)
             + F.crater(1690, 53.75, 0.8, { y: CITY.R1[2], cracks: true }) + ghosts(rLoop("fly", ARMOR, mono("#5CCFFF")), up, [53.8, 54.3], 3, 0.03) + trail(up, 53.8, 54.3, ["#FFFFFF", "#8FE0FF", "#5CCFFF"]),
         screen: F.whip(53.8, 0.4, { deg: 90 }),
         quake: [[53.75, 0.3, 12]]
@@ -75,7 +75,7 @@ const ROOF1 = CITY.R1[2] - Art.H * PX;
         // The twin ahead, growing; its blasts coming at us.
         const tw = [[t0, 0, 0, 0, 0.14], [55.3, -50, -20, 0, 0.2, "ease-in-out"], [56.2, 60, 10, 0, 0.28, "ease-in-out"], [57.0, 0, 0, 0, 0.55, "ease-in"], [57.35, 0, 20, 0, 2.6]];
         const twinArt = place(pix(pose("cast"), PX, -90, -90, { flip: true, pal: TWIN2 }), VP[0], VP[1]);
-        const twin = S.move(twinArt, tw, { origin: VP, on: 12 });
+        const twin = S.move(twinArt, tw, { origin: VP });
         const blast = (t, dir) => S.shot(`<circle cx="${VP[0]}" cy="${VP[1]}" r="40" fill="url(#pinkFlare)"/>` + pix(Art.impact(5, 7), 4, VP[0] - 22, VP[1] - 22, { pal: PINK }), t, 0.45, { dx: dir * 520, dy: 160, s0: 0.3, s1: 7, origin: VP, ease: "cubic-bezier(.5,0,.9,.6)" });
         const world = `<g>${horizon}${clouds}${stars}${twin}${blast(55.35, -1)}${blast(56.25, 1)}${rush}</g>`;
         const rolled = S.move(world, [[t0, 0, 0, 0, 1], [55.3, 0, 0, 0, 1, "cubic-bezier(.3,0,.2,1)"], [55.6, 0, 0, -28, 1.05, "ease-in-out"], [56.2, 0, 0, 0, 1, "cubic-bezier(.3,0,.2,1)"], [56.5, 0, 0, 24, 1.05, "ease-in-out"], [57.1, 0, 0, 0, 1]], { origin: [480, 360] });
@@ -86,7 +86,7 @@ const ROOF1 = CITY.R1[2] - Art.H * PX;
             + `<path d="M160 200 Q110 360 160 520 M800 200 Q850 360 800 520" fill="none" stroke="${cyan}" stroke-width="3" stroke-opacity=".7" shape-rendering="geometricPrecision"/>`
             + Array.from({ length: 7 }, (_, i) => rect(150 + (i % 2) * 6, 230 + i * 44, 16, 2, cyan, ' opacity=".7"') + rect(794 - (i % 2) * 6, 230 + i * 44, 16, 2, cyan, ' opacity=".7"')).join("")
             + S.move(`<g fill="none" stroke="${cyan}" stroke-width="3" shape-rendering="geometricPrecision"><path d="M${VP[0] - 50} ${VP[1] - 30}v-20h20M${VP[0] + 50} ${VP[1] - 30}v-20h-20M${VP[0] - 50} ${VP[1] + 30}v20h20M${VP[0] + 50} ${VP[1] + 30}v20h-20"/></g>`,
-                tw.map(([t, x, y, , s, e]) => [t, x, y, 0, Math.min(2.2, 0.6 + s * 1.6), e]), { origin: VP, on: 12 })
+                tw.map(([t, x, y, , s, e]) => [t, x, y, 0, Math.min(2.2, 0.6 + s * 1.6), e]), { origin: VP })
             + S.win(pix(word("ICYCLE OS", "c"), 3, 150, 120, { pal: { c: cyan } }), [[t0 + 0.1, t0 + 0.2], [t0 + 0.3, t1]]) + S.win(S.loop([rect(150 + wordW(9) * 3 + 8, 120, 9, 21, cyan), ""], 3), [[t0 + 0.3, t1]])
             + S.win(rect(150, 150, 120, 3, cyan, ' opacity=".6"'), [[t0 + 0.5, t1]]) + S.win(rect(150, 158, 80, 3, cyan, ' opacity=".6"'), [[t0 + 0.7, t1]]);
         const punch = F.flash(57.35, 2) + S.win(F.flat(INK) + F.focus(W / 2, H / 2, 44, 120, PAPER) + sil(pose("fall"), W / 2 - 270, H / 2 - 260, PAPER, { flip: true, eyes: INK, k: 30 }), [[57.43, 57.52]])
@@ -102,7 +102,7 @@ const ROOF1 = CITY.R1[2] - Art.H * PX;
         [59.2, 1620, 330, 0, 1, "ease-in-out"], [60.1, 1600, 300, 0, 1, "ease-in"], [60.15, 1610, 310], [60.5, 1650, 900, 540]];
     const rBody = S.win(rLoop("fly", ARMOR) + jets(), [[57.6, 57.8], [58.4, 60.0]]) + S.win(rA(pose("cast", 0, ARMOR)) + jets(), [[57.8, 58.05], [58.25, 58.4], [60.0, 61]]) + S.win(rLoop("charge", ARMOR) + jets(), [[58.05, 58.25]]);
     const tBody = S.win(tA(pose("jump"), TWIN2), [[57.6, 57.8], [58.4, 60.1]]) + S.win(tA(pose("fall"), TWIN2), [[57.8, 58.05], [58.25, 58.4], [60.1, 61]]) + S.win(tA(pose("cast"), TWIN2), [[58.05, 58.25]]) + S.win(cracked(5), [[57.6, 61]]);
-    const both = actor(rBody, rP) + actor(tBody, tP);
+    const both = actor(rBody + S.win(F.hitFlash(pose("fall", 0, ARMOR)), [[58.05, 58.09]]), rP) + actor(tBody + S.win(F.hitFlash(pose("fall"), true), [[57.8, 57.84], [58.25, 58.29], [60.15, 60.2]]), tP);
     shot(57.6, 58.4, {
         ...skyWorld,
         cam: [[57.6, 1550, 380, 0.8, 4, "ease-out"], [57.8, 1500, 340, 1.0, -6, "ease-in-out"], [58.05, 1460, 360, 1.05, 7, "ease-in-out"], [58.25, 1560, 300, 1.0, -8, "ease-out"], [58.4, 1520, 320, 0.95, -4]],
@@ -134,7 +134,7 @@ const ROOF1 = CITY.R1[2] - Art.H * PX;
     {
         const t0 = 60.5, t1 = 61.4;
         const sky = Array.from({ length: 60 }, () => rect(R(0, W), R(0, H), 3, 3, ".st", ` opacity="${R(0.2, 0.7).toFixed(2)}"`)).join("") + place(moonArt(6), 760, 160);
-        const faller = S.move(place(pix(pose("fall"), PX, -90, -90, { flip: true, pal: TWIN2 }) + place(cracked(5), -90, -90), 480, 300), [[t0, 0, 0, 0, 0.25], [t1, 0, 120, 720, 3.2, "linear"]], { origin: [480, 300], on: 12 });
+        const faller = S.move(place(pix(pose("fall"), PX, -90, -90, { flip: true, pal: TWIN2 }) + place(cracked(5), -90, -90), 480, 300), [[t0, 0, 0, 0, 0.25], [t1, 0, 120, 720, 3.2, "linear"]], { origin: [480, 300] });
         const lines = Array.from({ length: 30 }, () => { const a = R(0, 6.28), x = 480 + Math.cos(a) * R(60, 120), y = 300 + Math.sin(a) * R(60, 120); return S.shot(rect(x, y, 3, 30, "#FFD6F5", ` transform="rotate(${r1((a * 180) / Math.PI + 90)} ${r1(x)} ${r1(y)})"`), t0 + R(0, 0.8), 0.25, { dx: Math.cos(a) * 600, dy: Math.sin(a) * 600, ease: "ease-in" }); }).join("");
         shots.push(S.win(S.move(sky, [[t0, 0, 0, 0, 1], [t1, 0, 0, 25, 1.2]], { origin: [480, 360] }) + lines + faller, [[t0, t1]]));
     }

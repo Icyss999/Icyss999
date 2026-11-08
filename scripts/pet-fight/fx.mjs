@@ -57,25 +57,27 @@ export function rockBody(bit, big = 0) {
     const colour = ([i, j]) => j === Math.min(...ys) ? "#C4F4FF" : i === Math.max(...xs) ? "#4FB0E0" : i === Math.min(...xs) ? "#4A6380" : "#2A3748";
     return { html: cells.map((c) => rect(c[0] * fx - fx / 2, c[1] * fx - fx / 2, fx, fx, colour(c))).join(""), bottom: Math.max(...ys) };
 }
-// A chunk flung off at (vx, vy) px/s, tumbling a quarter turn at a time till
-// it comes down (on `floor`) and stays.
+// A chunk flung off at (vx, vy) px/s: a true parabola (up easing out to the
+// top, down easing in -- both exact quadratics), spinning, a bounce where it
+// lands (on `floor`), then it stays or goes.
+const UP = "cubic-bezier(.333,.667,.667,1)", DOWN = "cubic-bezier(.333,0,.667,.333)";
 export function rock(x, y, t, { vx = 0, vy = -400, bit = false, life = 1.6, g = 1500, big = 0, stay = false, floor: fl = GROUND } = {}) {
     vx *= K; vy *= K; g *= K;
     const { html, bottom } = rockBody(bit, big);
     const floor = fl - (bottom + 1) * fx + fx / 2;
-    const lands = (-vy + Math.sqrt(vy * vy + 2 * g * Math.max(0, floor - y))) / g;
-    const steps = [[t - 0.001, `transform:translate(${r1(x)}px,${r1(y)}px);opacity:0`]];
-    for (let s = 0; s <= lands + 1e-6; s += 0.083) {
-        const tt = Math.min(s, lands);
-        steps.push([t + tt, `transform:translate(${r1(x + vx * tt)}px,${r1(Math.min(floor, y + vy * tt + 0.5 * g * tt * tt))}px);opacity:1`]);
-    }
-    const rest = `transform:translate(${r1(x + vx * lands)}px,${r1(floor)}px)`;
-    steps.push([t + lands, `${rest};opacity:1`]);
-    if (!stay) steps.push([t + life - 0.25, `${rest};opacity:1`], [t + life, `${rest};opacity:0`]);
-    const turns = [[t - 0.001, "transform:rotate(0deg)"]], every = R(0.06, 0.15);
-    for (let s = 0, k = Math.floor(rnd() * 4); s < lands; s += every, k++) turns.push([t + s, `transform:rotate(${(k % 4) * 90}deg)`]);
-    const id = S.anim("k", steps, "opacity:0", "step-end"), spin = S.anim("q", turns, "", "step-end");
-    return `<g class="${id}"><g class="${spin}">${html}</g></g>`;
+    const lands = (-vy + Math.sqrt(vy * vy + 2 * g * Math.max(0, floor - y))) / g, x1 = x + vx * lands;
+    const ta = vy < 0 ? Math.min(-vy / g, lands) : 0, ya = y + vy * ta + 0.5 * g * ta * ta;
+    const hop = Math.min(26, Math.abs(vy) * 0.03 + 6), th = 0.1 + hop / 300, end = t + lands + 2 * th;
+    const X = [[t - 0.001, `transform:translate(${r1(x)}px,0px);opacity:0`], [t, `transform:translate(${r1(x)}px,0px);opacity:1`],
+        [t + lands, `transform:translate(${r1(x1)}px,0px);opacity:1`, "ease-out"], [end, `transform:translate(${r1(x1 + vx * th * 0.4)}px,0px);opacity:1`]];
+    if (!stay) X.push([t + life - 0.25, `transform:translate(${r1(x1 + vx * th * 0.4)}px,0px);opacity:1`], [t + life, `transform:translate(${r1(x1 + vx * th * 0.4)}px,0px);opacity:0`]);
+    const ty = (v) => `transform:translate(0px,${r1(v)}px)`;
+    const Y = [[t - 0.001, ty(y)]];
+    if (ta > 0.01) Y.push([t, ty(y), UP], [t + ta, ty(ya), DOWN]); else Y.push([t, ty(y), DOWN]);
+    Y.push([t + lands, ty(floor), UP], [t + lands + th, ty(floor - hop), DOWN], [end, ty(floor)]);
+    const spin = (rnd() < 0.5 ? -1 : 1) * Math.round(R(1, 4)) * 90;
+    const id = S.anim("k", X, "opacity:0"), idy = S.anim("k", Y), rot = S.anim("q", [[t - 0.001, "transform:rotate(0deg)"], [t, "transform:rotate(0deg)", "cubic-bezier(.2,.6,.4,1)"], [end, `transform:rotate(${spin}deg)`]]);
+    return `<g class="${id}"><g class="${idy}"><g class="${rot}">${html}</g></g></g>`;
 }
 export const debris = (x, y, t, n, { vx = [-260, 260], vy = [300, 760], life = [1.1, 1.6], stay = false, floor } = {}) =>
     Array.from({ length: n }, (_, i) => rock(x + R(-30, 30), y, t + R(0, 0.04), { bit: i % 3 === 2, vx: R(...vx), vy: -R(...vy), life: R(...life), stay, floor })).join("");
@@ -99,10 +101,12 @@ export function floatRock(x, t0, blast, hover, away, ground = GROUND) {
 export function burst(x, y, t, { radius = 56, sparks = 16, glint = 90, life = 0.38, color = "#FFD84A", trail = "#5CCFFF" } = {}) {
     radius *= K; glint *= K;
     let s = "";
+    // Sparks as streaks along the way they fly, thinning out as they go.
     for (let i = 0; i < sparks; i++) {
-        const a = (i / sparks) * 2 * Math.PI + R(-0.2, 0.2), r = radius * R(0.75, 1.25);
-        s += S.shot(rect(x - fx / 2, y - fx / 2, fx, fx, i % 2 ? "#FFFFFF" : color), t, life, { dx: Math.cos(a) * r, dy: Math.sin(a) * r, ease: "cubic-bezier(.2,.8,.3,1)" });
-        if (i % 2) s += S.shot(rect(x - fx / 2, y - fx / 2, fx, fx, trail), t + 0.03, life, { dx: Math.cos(a) * r * 0.7, dy: Math.sin(a) * r * 0.7, ease: "cubic-bezier(.2,.8,.3,1)" });
+        const a = (i / sparks) * 2 * Math.PI + R(-0.2, 0.2), r = radius * R(0.75, 1.25), deg = r1((a * 180) / Math.PI), l = R(3, 6) * fx;
+        const streak = (c, w) => `<g transform="rotate(${deg} ${r1(x)} ${r1(y)})">${rect(x - l / 2, y - w / 2, l, w, c)}</g>`;
+        s += S.shot(streak(i % 2 ? "#FFFFFF" : color, fx * 0.7), t, life, { dx: Math.cos(a) * r, dy: Math.sin(a) * r, s1: 0.4, origin: [x, y], ease: "cubic-bezier(.2,.8,.3,1)" });
+        if (i % 2) s += S.shot(streak(trail, fx * 0.45), t + 0.03, life * 1.2, { dx: Math.cos(a) * r * 0.7, dy: Math.sin(a) * r * 0.7 + 10, s1: 0.3, origin: [x, y], ease: "cubic-bezier(.2,.8,.3,1)" });
     }
     s += S.shot(rect(x - glint / 2, y - 4, glint, 8, "#FFFFFF") + rect(x - 4, y - glint / 2, 8, glint, "#FFFFFF"), t, life * 0.8, { s0: 1, s1: 0.1, origin: [x, y] });
     return s;
@@ -363,3 +367,21 @@ export function glitchWord(w, x, y, k, t0, t1, { color = ".ink" } = {}) {
         + S.win(place(base, k * 3, 0), [[t0 + dt * 0.3, t0 + dt * 0.36]]);
 }
 export { word, wordW };
+
+// A shadow on the ground under something moving along `pts` (art top-left):
+// it follows along the ground, shrinking and fading as it goes up.
+export function shadowOf(pts, { ground = GROUND, w = 64 } = {}) {
+    const k = (y) => Math.max(0.25, Math.min(1, 1 - (ground - (y + Art.H * PX)) / 420));
+    const steps = pts.map(([t, x, y, , , e]) => [t, `transform:translate(${r1(x + C0[0])}px,${ground + 3}px) scale(${r3(k(y))});opacity:${r3(0.2 + 0.4 * k(y))}`, e]);
+    return `<g class="${S.anim("m", steps, "opacity:0")}"><ellipse cx="0" cy="0" rx="${w}" ry="8" fill="#000"/></g>`;
+}
+// Dust in the air, catching the light: specks drifting, on their own clocks.
+export const motes = (n, x0, x1, y0, y1, { color = "#C8CCE0", size = 3 } = {}) => Array.from({ length: n }, () => {
+    const dur = R(5, 9);
+    return `<g class="mote" style="animation-duration:${r1(dur)}s;animation-delay:-${r1(R(0, dur))}s;--dx:${r1(R(-80, 80))}px;--dy:${r1(R(-120, -30))}px">${rect(R(x0, x1), R(y0, y1), size, size, color)}</g>`;
+}).join("");
+// Bands of mist drifting low over the ground.
+export const mist = (x0, x1, y, n = 6, { w = [260, 520], h = [26, 50] } = {}) => Array.from({ length: n }, () =>
+    `<g class="mist" style="animation-delay:-${r1(R(0, 16))}s;animation-duration:${r1(R(12, 20))}s"><ellipse cx="${r1(R(x0, x1))}" cy="${r1(y + R(-20, 20))}" rx="${r1(R(...w))}" ry="${r1(R(...h))}" fill="url(#mistGrad)"/></g>`).join("");
+// A white flash over a pet, the frame a blow lands (drawn at 0, 0).
+export const hitFlash = (rows, flip = false) => pix(rows, PX, 0, 0, { flip, pal: mono("#FFFFFF") });

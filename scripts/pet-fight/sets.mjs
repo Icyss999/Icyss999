@@ -3,7 +3,7 @@
 // straight above. Drawn once into <defs>, in GitHub's own colours.
 
 import { S, R, rnd, rect, pix, place, poly, disc, stepped, r1, r3, defs, use, word, wordW, W, H, D, GROUND, fx, PX, GRAY, STONE, RIFT } from "./core.mjs";
-import { rockBody } from "./fx.mjs";
+import { rockBody, mist } from "./fx.mjs";
 
 defs.push(`<filter id="feath" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="26"/></filter>
 <mask id="fade" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}"><rect x="34" y="30" width="${W - 68}" height="${H - 60}" rx="40" fill="#fff" filter="url(#feath)"/></mask>
@@ -16,6 +16,7 @@ defs.push(`<filter id="feath" x="-20%" y="-20%" width="140%" height="140%"><feGa
 <radialGradient id="moonGlow"><stop offset="0" stop-color="#DDE6F5" stop-opacity=".25"/><stop offset="1" stop-color="#DDE6F5" stop-opacity="0"/></radialGradient>
 <radialGradient id="neonGlow"><stop offset="0" stop-color="#FF4FD8" stop-opacity=".4"/><stop offset="1" stop-color="#FF4FD8" stop-opacity="0"/></radialGradient>
 <radialGradient id="dark"><stop offset="0" stop-color="#05060A" stop-opacity=".85"/><stop offset=".6" stop-color="#05060A" stop-opacity=".5"/><stop offset="1" stop-color="#05060A" stop-opacity="0"/></radialGradient>
+<radialGradient id="mistGrad"><stop offset="0" style="stop-color:var(--mist);stop-opacity:.14"/><stop offset=".6" style="stop-color:var(--mist);stop-opacity:.06"/><stop offset="1" style="stop-color:var(--mist);stop-opacity:0"/></radialGradient>
 <linearGradient id="rayGrad"><stop offset="0" stop-color="#DDEBFF" stop-opacity=".22"/><stop offset="1" stop-color="#DDEBFF" stop-opacity="0"/></linearGradient>
 <linearGradient id="goldRay"><stop offset="0" stop-color="#FFE98A" stop-opacity=".5"/><stop offset="1" stop-color="#FFC43A" stop-opacity="0"/></linearGradient>
 <linearGradient id="pinkRay"><stop offset="0" stop-color="#FFB8EE" stop-opacity=".45"/><stop offset="1" stop-color="#FF4FD8" stop-opacity="0"/></linearGradient>
@@ -67,6 +68,10 @@ export const constellation = (t, t1) => LETTERS.map(({ dots, lines }, i) => S.fa
     sky += `<g class="morse"><circle cx="2312" cy="214" r="16" fill="url(#starGlow)"/>${rect(2306, 208, 12, 12, "#CFEFFF")}${rect(2309, 202, 6, 24, "#CFEFFF")}${rect(2300, 211, 24, 6, "#CFEFFF")}${rect(2309, 211, 6, 6, "#FFFFFF")}</g>`;
     const moon = disc(8, (d, i, j) => (d > 0.85 ? "c" : (i * 3 + j * 5) % 11 === 0 || (i - 2) ** 2 + (j + 1) ** 2 < 5 ? "b" : "a"));
     sky += `<circle cx="2050" cy="330" r="120" fill="url(#moonGlow)"/>` + pix(moon, 6, 2050 - 48, 330 - 48, { pal: { a: "#E2E8F2", b: "#C3CBDA", c: "#AEB7C9" } });
+    // Thin cloud drifting across, and now and then a shooting star.
+    sky += `<g opacity=".45">${mist(300, 2900, 400, 6, { w: [320, 640], h: [40, 70] }) + mist(600, 2600, 140, 3, { w: [300, 520], h: [36, 60] })}</g>`;
+    for (const [x, y, d] of [[2600, 60, 0], [1500, -60, -4.2], [900, 120, -7]])
+        sky += `<g class="shoot" style="animation-delay:${d}s"><line x1="${x}" y1="${y}" x2="${x + 90}" y2="${y - 45}" stroke="#FFFFFF" stroke-width="3" stroke-opacity=".8" stroke-linecap="round"/></g>`;
     defs.push(`<g id="sky">${sky}</g>`);
 }
 export const MOON = [2050, 330];
@@ -97,6 +102,12 @@ defs.push(`<g id="mtn">${mountains()}</g>`, `<g id="far">${use("sky")}${use("mtn
     for (const [x, kind, a, b] of [[420, "col", 40, 150], [560, "arch", 170, 210], [860, "tree", 170], [1080, "col", 36, 110], [1330, "col", 48, 230],
         [1880, "arch", 200, 240], [2200, "tree", 150], [2380, "col", 42, 180], [2560, "col", 34, 90], [2760, "arch", 150, 170]])
         mid += kind === "col" ? col(x, a, b) : kind === "arch" ? arch(x, a, b) : tree(x, a);
+    // Tattered banners on poles, flapping.
+    for (const [x, h] of [[700, 260], [1500, 300], [2300, 240], [2950, 280]]) {
+        const top = 1000 - h, flag = [[0, 0], [70, 6], [62, 22], [78, 34], [58, 46], [70, 62], [0, 56]];
+        mid += rect(x, top, 6, h + 300, ".c2") + rect(x - 4, top - 8, 14, 8, ".c3")
+            + `<g class="wave" style="animation-delay:-${r1(R(0, 1.3))}s;transform-origin:${x + 6}px ${top}px">${poly(flag.map(([a, b]) => [x + 6 + a, top + 4 + b]), ".c3")}${poly([[x + 6, top + 22], [x + 72, top + 26], [x + 70, top + 34], [x + 6, top + 32]].map(([a, b]) => [a, b]), "#5a2a34", ' opacity=".8"')}</g>`;
+    }
     defs.push(`<g id="mid">${mid}</g>`);
 }
 
@@ -122,7 +133,16 @@ export const boulder = (x, w, h, ground = GROUND) => {
         g += `<g class="sway" style="animation-delay:-${R(0, 1.6).toFixed(2)}s;transform-origin:${x}px ${GROUND}px">${rect(x, GROUND - 12, 6, 12, ".t1")}${rect(x + 6, GROUND - 18, 6, 18, ".t2")}${rect(x + 12, GROUND - 6, 6, 6, ".t1")}</g>`;
     }
     for (const [x, w, h] of [[240, 14, 8], [820, 9, 6], [2620, 16, 9], [2900, 10, 6], [3080, 12, 7]]) g += boulder(x, w, h);
+    g += `<g opacity=".7">${mist(-200, 3400, GROUND - 24, 10, { w: [300, 560], h: [40, 70] })}</g>`;
     defs.push(`<g id="ground">${g}</g>`);
+    // The foreground, nearest the camera (it moves fastest): dark stones and
+    // grass, out past the ground's edge.
+    let f = "";
+    for (let i = 0; i < 22; i++) {
+        const x = Math.round(R(-600, 3800) / 8) * 8, y = Math.round(R(GROUND + 130, GROUND + 280) / 8) * 8, w = R(120, 320), h = R(24, 56);
+        f += `<path d="M${x} ${y + h}Q${x + w * 0.2} ${y + h * 0.2} ${x + w * 0.5} ${y}Q${x + w * 0.85} ${y + h * 0.1} ${x + w} ${y + h}Z" class="fgc" opacity=".4" shape-rendering="geometricPrecision"/>`;
+    }
+    defs.push(`<g id="fg">${f}</g>`);
     // Just the line: the page before the world shows through it.
     defs.push(`<g id="rule">${rect(-2000, GROUND, 7200, 3, ".g1")}</g>`);
 }
@@ -201,8 +221,9 @@ export function tower(x, w, top, { tone = "b3", edge = "b4", lit = 0.16, pitch =
         defs.push(`<pattern id="${id}" patternUnits="userSpaceOnUse" x="${x0}" y="${top + 20}" width="${pitch[0]}" height="${pitch[1]}">${rect(0, 0, win[0], win[1], ".w0")}</pattern>`);
         s += rect(x0, top + 20, cols * pitch[0] - (pitch[0] - win[0]), base - top - 30, `url(#${id})`);
         for (let yy = top + 20; yy < Math.min(base - 10, 1000); yy += pitch[1])
-            for (let i = 0; i < cols; i++) if (rnd() < lit) s += rect(x0 + i * pitch[0], yy, win[0], win[1], "#F0C050", ' opacity=".75"');
+            for (let i = 0; i < cols; i++) if (rnd() < lit) s += rect(x0 + i * pitch[0], yy, win[0], win[1], "#F0C050", rnd() < 0.08 ? ` opacity=".75" class="flk" style="animation-delay:-${r1(R(0, 2.2))}s"` : ' opacity=".75"');
     }
+    s += rect(x - 4, top - 30, w + 8, 3, `.${edge}`) + Array.from({ length: Math.floor(w / 24) + 1 }, (_, i) => rect(x - 4 + i * 24, top - 30, 3, 22, `.${edge}`)).join("");
     if (aerial) s += rect(x + w * 0.7, top - 90, 4, 82, `.${edge}`) + `<g class="twk" style="animation-delay:-${r3(R(0, 3))}s">${rect(x + w * 0.7 - 3, top - 96, 10, 10, "#E84855")}</g>`;
     else if (rnd() < 0.6) s += rect(x + w * 0.2, top - 40, 40, 32, `.${edge}`) + rect(x + w * 0.2 + 6, top - 8, 6, 8, `.${edge}`) + rect(x + w * 0.2 + 28, top - 8, 6, 8, `.${edge}`);
     return s;
@@ -237,6 +258,10 @@ export const neonWord = (w, x, y, k, color = "#FF4FD8") => pix(word(w, "c"), k, 
     for (let x = -1000; x < 4400; x += 120) st += rect(x, GROUND + 60, 60, 6, ".t1");
     for (let x = -600; x < 4000; x += 520) st += rect(x, GROUND - 160, 6, 160, ".b4") + rect(x - 12, GROUND - 166, 30, 8, ".b4") + rect(x + 12, GROUND - 160, 14, 6, "#F0C050", ' opacity=".8"');
     defs.push(`<g id="street">${st}</g>`);
+    let fc = "";
+    for (let i = 0; i < 18; i++) { const x = Math.round(R(-600, 3800) / 8) * 8, y = Math.round(R(GROUND + 140, GROUND + 280) / 8) * 8, w = R(30, 110), h = R(14, 40); fc += rect(x, y, w, h, ".fgc", ' opacity=".5"') + rect(x + w * 0.3, y - h * 0.5, w * 0.4, h * 0.6, ".fgc", ' opacity=".45"'); }
+
+    defs.push(`<g id="fgCity">${fc}</g>`);
 }
 // The near towers, where the fight is: [x, w, top].
 export const CITY = { L1: [380, 300, 470], L2: [820, 300, 380], R1: [1480, 360, 560], R2: [2000, 340, 430], R3: [2470, 320, 520] };
@@ -245,6 +270,9 @@ const NEAR = { base: GROUND + 4 };
 defs.push(`<g id="L1">${tower(...CITY.L1, { ...NEAR, aerial: true })}</g>`, `<g id="L2">${tower(...CITY.L2, { ...NEAR, glass: true })}</g>`,
     `<g id="R1">${tower(...CITY.R1, NEAR)}</g>`, `<g id="R2">${tower(...CITY.R2, { ...NEAR, aerial: true })}</g>`, `<g id="R3">${tower(...CITY.R3, NEAR)}</g>`);
 // The sign: a frame on legs, the letters glowing (flickering on).
+// Cables slung between the near towers.
+export const wires = () => [[680, 520, 820, 420], [1120, 430, 1480, 590], [1840, 600, 2000, 470], [2340, 480, 2470, 560], [380, 560, 680, 540]].map(([x0, y0, x1, y1]) =>
+    `<path d="M${x0} ${y0}Q${(x0 + x1) / 2} ${Math.max(y0, y1) + 60} ${x1} ${y1}" fill="none" style="stroke:var(--b4)" stroke-width="2" shape-rendering="geometricPrecision"/>`).join("");
 export const signFrame = () => rect(SIGN.x - 14, SIGN.y - 14, wordW(6) * SIGN.k + 28, 7 * SIGN.k + 28, ".b5") + rect(SIGN.x + 20, SIGN.y + 7 * SIGN.k + 14, 8, 560 - (SIGN.y + 7 * SIGN.k + 14), ".b4") + rect(SIGN.x + wordW(6) * SIGN.k - 28, SIGN.y + 7 * SIGN.k + 14, 8, 560 - (SIGN.y + 7 * SIGN.k + 14), ".b4");
 export const signLetters = () => `<ellipse cx="${SIGN.x + (wordW(6) * SIGN.k) / 2}" cy="${SIGN.y + 28}" rx="260" ry="120" fill="url(#neonGlow)"/>`
     + `<g filter="url(#neon)">${[..."ICYCLE"].map((ch, i) => `<g class="flk" style="animation-delay:-${r3(i * 0.37)}s">${neonWord(ch, SIGN.x + i * 6 * SIGN.k, SIGN.y, SIGN.k, i % 2 ? "#FF6FE0" : "#FFB0F0")}</g>`).join("")}</g>`;

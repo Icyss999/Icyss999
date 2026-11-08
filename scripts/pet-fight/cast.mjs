@@ -21,15 +21,14 @@ export const rLoopB = (st, m = {}, pal = PAL) => S.loop(frames(st, m).map((r) =>
 export const tLoopB = (st, m = {}, pal = TWIN) => S.loop(frames(st, m).map((r) => tB(r, pal)), FPS[st] || 4);
 export { C0 };
 // Moved through the world: [t, x, y, rotate, scale, easing] of its art's
-// top-left, turning round the middle of it -- drawn on 2s (on 1s for the
-// quick moves, 3s for the slow heavy ones) unless `smooth`.
-export const actor = (html, pts, { smooth = false } = {}) => S.move(html, pts.map(([t, x, y, r = 0, s = 1, e]) => [t, x, y, r, s, e]), { origin: C0, on: !smooth });
+// top-left, turning round the middle of it.
+export const actor = (html, pts, { stepped = false } = {}) => S.move(html, pts.map(([t, x, y, r = 0, s = 1, e]) => [t, x, y, r, s, e]), { origin: C0, on: stepped });
 // Afterimages within [a, b]: the same moves a beat behind, fading, in one
 // colour (only that stretch of the path, drawn on 2s).
 export const ghosts = (html, pts, [a, b], n = 3, lag = 0.035, opacity = 0.45) => S.win(Array.from({ length: n }, (_, k) => {
     const d = lag * (k + 1), path = [];
     for (let t = a - d; t <= b + 1e-6; t += 1 / 12) { const [, x, y, r = 0, s = 1] = pathAt(pts, t); path.push([t + d, x, y, r, s]); }
-    return `<g opacity="${Math.round(opacity * (1 - k / n) * 100) / 100}">${S.move(html, path, { origin: C0, on: 12 })}</g>`;
+    return `<g opacity="${Math.round(opacity * (1 - k / n) * 100) / 100}">${S.move(html, path, { origin: C0 })}</g>`;
 }).join(""), [[a, b]]);
 
 // Landmarks in a pet's art (art pixels, facing right).

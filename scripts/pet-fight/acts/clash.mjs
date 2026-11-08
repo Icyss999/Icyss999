@@ -10,6 +10,10 @@ import { pose, rA, tA, rLoop, tLoop, actor, ghosts, rAt, tAt, paw, grip, MID, CO
 import { rift, pillar, LPX, RPX, TOPPLE } from "../sets.mjs";
 
 export const CLASH_OFF = 10.8;
+// A shadow under a pet standing at (0, 0).
+export function foot() { return `<ellipse cx="${(Art.W * PX) / 2}" cy="${Art.H * PX + 3}" rx="64" ry="8" fill="#000" opacity=".55"/>`; }
+// Squash and stretch at each of these [t, sx, sy] (squashed by default).
+export function sq(html, at) { return at.reduce((h, [t, sx = 1.22, sy = 0.78]) => S.squash(h, t, { sx, sy }), html); }
 export const R0 = 500, T0 = 2520;
 const { hit, ring, dustRing, debris, scorch, embers, crackle, puff, flare, streaks, trail, kicks, bolt, boltOnce, explosion, effect, aura, glint, rock, floatRock, GOLD_ARC, PINK_ARC, PINK_LINES } = F;
 
@@ -18,14 +22,14 @@ S.within(CLASH_OFF, () => {
     // static crawling over it...
     shot(3.0, 3.6, {
         cam: [[3.0, R0 + 110, 820, 1.15, -7], [3.6, R0 + 110, 812, 1.28, -8]],
-        main: rift() + pillar(LPX) + place(S.fade(aura(pose("land"), "#FFC43A"), [[3.0, 0], [3.2, 0.7], [3.4, 0.4], [3.6, 0.8]]) + rA(pose("land")), R0, TOP)
+        main: rift() + pillar(LPX) + place(S.fade(aura(pose("land"), "#FFC43A"), [[3.0, 0], [3.2, 0.7], [3.4, 0.4], [3.6, 0.8]]) + foot() + S.squash(rA(pose("land")), 3.02, { sx: 1.12, sy: 0.88 }), R0, TOP) + F.motes(16, R0 - 200, R0 + 500, TOP - 100, GROUND)
             + crackle(R0 + 100, TOP + 110, 10, 20, 70, 3.0, 0.6, GOLD_ARC)
             + puff(R0 + 60, GROUND - 8, 3.05, { to: 6, dx: -50, dy: -10 }) + puff(R0 + 150, GROUND - 8, 3.05, { to: 6, dx: 50, dy: -10 }) + F.spiderweb(R0 + 95, GROUND + 3, 160, 3.05, { glow: "#FFC43A" })
     });
     // ...and the twin, eyes glinting.
     shot(3.6, 4.2, {
         cam: [[3.6, T0 + 70, 820, 1.15, 7], [4.2, T0 + 70, 812, 1.28, 8]],
-        main: rift() + pillar(RPX) + place(S.fade(aura(pose("land"), "#FF4FD8", { flip: true }), [[3.6, 0], [3.8, 0.7], [4.0, 0.4], [4.2, 0.8]]) + tA(pose("land")), T0, TOP)
+        main: rift() + pillar(RPX) + place(S.fade(aura(pose("land"), "#FF4FD8", { flip: true }), [[3.6, 0], [3.8, 0.7], [4.0, 0.4], [4.2, 0.8]]) + foot() + S.squash(tA(pose("land")), 3.62, { sx: 1.12, sy: 0.88 }), T0, TOP) + F.motes(16, T0 - 400, T0 + 300, TOP - 100, GROUND)
             + crackle(T0 + 80, TOP + 110, 10, 20, 70, 3.6, 0.6, PINK_ARC) + glint(...tAt(T0, TOP, [Art.X0 + 7.5, Art.TOP + 6.5]).map((v, i) => v + (i ? -4 : -8)), 3.8, "#FFD6F5")
             + F.spiderweb(T0 + 85, GROUND + 3, 160, 3.65, { glow: "#FF4FD8" })
     });
@@ -58,6 +62,7 @@ S.within(CLASH_OFF, () => {
         S.fade(aura(pose("charge"), "#FFC43A"), [[13.0, 0, "step-end"], [13.01, 1], [15.4, 1, "step-end"], [15.41, 0]]),
         S.win(F.rgb(pose("fall")), [[6.6, 6.72]]),
         S.win(rA(pose("land")), [[4.2, 4.32], [5.0, 5.15], [6.4, 6.6], [7.0, 7.55], [11.95, 13.0], [15.4, 16.6], [16.75, 16.9]]),
+        S.win(F.hitFlash(pose("fall")), [[5.6, 5.64], [6.6, 6.64]]), S.win(F.hitFlash(pose("land")), [[5.0, 5.04]]),
         S.win(rLoop("run"), [[4.32, 5.0]]),
         S.win(rA(pose("cast")), [[5.15, 5.6], [7.55, 8.45]]),
         S.win(rA(pose("fall")), [[5.6, 5.75], [6.6, 7.0]]),
@@ -81,6 +86,7 @@ S.within(CLASH_OFF, () => {
         S.fade(aura(pose("charge"), "#FF4FD8", { flip: true }), [[13.0, 0, "step-end"], [13.01, 1], [15.4, 1, "step-end"], [15.41, 0]]),
         S.win(F.rgb(pose("fall"), { flip: true }), [[7.6, 7.72]]),
         S.win(tA(pose("land")), [[4.2, 4.32], [5.0, 5.15], [6.4, 6.5], [8.05, 8.3], [12.4, 13.0], [15.4, 16.6]]),
+        S.win(F.hitFlash(pose("fall"), true), [[5.3, 5.34], [7.6, 7.65], [10.62, 10.66]]), S.win(F.hitFlash(pose("land"), true), [[5.0, 5.04]]), S.win(F.hitFlash(pose("alert"), true), [[16.75, 16.8]]),
         S.win(tLoop("run"), [[4.32, 5.0]]),
         S.win(tLoop("annoyed"), [[5.15, 5.3], [6.9, 7.6], [8.3, 9.5], [11.0, 12.4]]),
         S.win(tA(pose("fall")), [[5.3, 5.45], [7.6, 8.05], [10.75, 11.0]]),
@@ -110,7 +116,7 @@ S.within(CLASH_OFF, () => {
     // The twin's heavy blow, and Rascal through the pillar.
     main.push(hit(1555, 815, 6.6, { size: 1.6, pink: true }) + streaks(1600, 800, 700, 790, 6.6, 16, { len: [140, 320] }) + trail(rPts, 6.6, 7.0, ["#FFFFFF", "#8FE0FF"], { every: 0.025 }));
     main.push(S.win(pillar(LPX), [[0, 6.8]]) + S.win(pillar(LPX, 16, true), [[6.8, D]])
-        + S.win(S.move(pix(TOPPLE.rows, fx, TOPPLE.x, TOPPLE.y, { pal: STONE }), [[6.8, 0, 0, 0, 1, "ease-in"], [7.1, -110, 10, -35, 1, "ease-in"], [7.32, -236, 144, -90]], { origin: TOPPLE.c, on: 12 }), [[6.8, D]])
+        + S.win(S.move(pix(TOPPLE.rows, fx, TOPPLE.x, TOPPLE.y, { pal: STONE }), [[6.8, 0, 0, 0, 1, "ease-in"], [7.1, -110, 10, -35, 1, "ease-in"], [7.32, -236, 144, -90]], { origin: TOPPLE.c }), [[6.8, D]])
         + dustRing(LPX - 200, 7.32, 12, 200) + debris(LPX - 200, GROUND - 10, 7.32, 7, { stay: true }) + ring(LPX - 200, GROUND, 7.32, { r: 260, flat: 0.12, width: 4 })
         + Array.from({ length: 14 }, (_, i) => rock(LPX + 30, GROUND - R(100, 260), 6.8 + R(0, 0.05), { big: i % 3, vx: -R(150, 520), vy: -R(100, 420), stay: i % 2 === 0, life: R(1.2, 1.8) })).join("")
         + Array.from({ length: 8 }, (_, i) => puff(LPX + 30, GROUND - R(60, 240), 6.8 + i * 0.02, { to: [9, 7, 6][i % 3], dx: -R(60, 200), dy: R(-60, 30), life: R(0.8, 1.3) })).join("")
@@ -208,7 +214,10 @@ S.within(CLASH_OFF, () => {
             [15.0, 1640, 770, 0.6, 0, "ease-in-out"], [15.4, 1680, 780, 0.62, 0, "ease-out"], [15.55, 1650, 760, 0.5, 3, "ease-in-out"], [16.3, 1300, 790, 0.85, -4, "ease-in-out"],
             [16.6, 1320, 790, 0.9, -6, "cubic-bezier(.7,0,.3,1)"], [16.8, 2000, 790, 0.85, -8, "ease-out"], [16.9, 2010, 790, 0.88, -8]
         ],
-        main: rift() + main.slice(0, 2).join("") + actor(rBody, rPts) + actor(tBody, tPts) + main.slice(2).join(""),
+        main: rift() + F.shadowOf(rPts) + F.shadowOf(tPts) + main.slice(0, 2).join("")
+            + actor(sq(rBody, [[5.0], [5.75, 0.85, 1.2], [6.4], [7.35, 1.15, 0.85], [9.2, 0.82, 1.22], [11.7], [15.6, 1.12, 0.9]]), rPts)
+            + actor(sq(tBody, [[5.0], [5.75, 0.85, 1.2], [6.4], [8.05, 1.3, 0.7], [9.5, 0.82, 1.22], [11.0, 1.25, 0.75], [15.6, 1.12, 0.9]]), tPts)
+            + main.slice(2).join("") + F.motes(36, 500, 2700, 420, GROUND - 10),
         screen: F.flash(5.0, 2, "#FFFFFF", 0.85) + F.flash(6.6, 1, "#FFFFFF", 0.7) + F.flash(7.6, 2, "#FFFFFF", 0.8) + F.flash(15.4, 3) + F.flash(16.75, 2, "#FFFFFF", 0.8)
             + F.focusFlicker(W / 2, H / 2, 5.0, 0.2, { op: 0.5 }) + F.focusFlicker(W / 2, H / 2, 16.6, 0.2, { op: 0.5 }),
         quake: [[5.0, 0.35, 14], [5.3, 0.15, 6], [5.6, 0.15, 6], [5.95, 0.15, 7], [6.15, 0.15, 7], [6.6, 0.25, 12], [6.8, 0.2, 10], [7.6, 0.4, 14],
